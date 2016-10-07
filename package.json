@@ -52,6 +52,7 @@
   "scripts": {
     "build": "gatsby build",
     "deploy": "gatsby build --prefix-links && gh-pages -d public",
-    "develop": "gatsby develop"
+    "develop": "gatsby develop",
+    "start": "gatsby develop"
   }
 }
