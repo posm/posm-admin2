@@ -25,7 +25,7 @@ const highlight = (str, lang) => {
 
 export default class ProjectPane extends React.Component {
   static defaultProps = {
-    refreshInterval: 15000
+    refreshInterval: 10000
   }
 
   static propTypes() {
@@ -47,12 +47,27 @@ export default class ProjectPane extends React.Component {
   }
 
   state = {
-    remote: this.props.project.status
+    project: this.props.project,
+    remote: this.props.project.status,
   }
 
   componentDidMount() {
     // monitor status
     this.monitorStatus();
+  }
+
+  componentWillUpdate(nextProps, nextState) {
+    if (nextState.remote.state === "SUCCESS" &&
+        nextState.remote.state !== this.state.remote.state) {
+      const { endpoint, name } = this.props;
+
+      fetch(`${endpoint}/projects/${name}`)
+        .then(rsp => rsp.json())
+        .then(project => this.setState({
+          project
+        }))
+        .catch(err => console.warn(err.stack));
+    }
   }
 
   componentWillUnmount() {
@@ -79,16 +94,17 @@ export default class ProjectPane extends React.Component {
     case "SUCCESS": {
       return (
         <span>
-          <a href={`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`} role="button" className="btn btn-success btn-sm">Download</a>
+          <a href={`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`} role="button" className="btn btn-success btn-sm">Download GeoTIFF</a>
           {/* <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button> */}
         </span>
       );
     }
 
+    case "FAILURE":
     case "REVOKED": {
-      if (local === "processing") {
+      if (local === "processing" && !this.isRunning()) {
         return (
-          <button type="button" className="btn btn-primary btn-sm">Re-process <i className="fa fa-circle-o-notch fa-spin" /></button>
+          <button type="button" className="btn btn-primary btn-sm">Re-processing <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
       }
 
@@ -98,9 +114,9 @@ export default class ProjectPane extends React.Component {
     }
 
     default: {
-      if (local === "processing") {
+      if (local === "processing" && !this.isRunning()) {
         return (
-          <button type="button" className="btn btn-primary btn-sm">Process <i className="fa fa-circle-o-notch fa-spin" /></button>
+          <button type="button" className="btn btn-primary btn-sm">Processing <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
       }
 
@@ -111,19 +127,32 @@ export default class ProjectPane extends React.Component {
     }
   }
 
+  getFailure() {
+    const { name } = this.props;
+    const { remote } = this.state;
+
+    if (remote.state !== "FAILURE") {
+      return null;
+    }
+
+    return (
+      <a data-toggle="modal" data-target={`.${name}-status-modal`}> <i className="fa fa-exclamation-triangle red" /></a>
+    );
+  }
+
   getSpinner() {
     if (!this.isRunning()) {
       return null;
     }
 
+    const { name } = this.props;
+
     return (
-      <a data-toggle="modal" data-target={`.${name}-status-modal`}> <i className="fa fa-circle-o-notch fa-spin" /></a>
+      <a data-toggle="modal" data-target={`.${name}-status-modal`}> <i className="fa fa-circle-o-notch fa-spin blue" /></a>
     );
   }
 
   cancel() {
-    console.log("Requesting cancellation...");
-
     this.setState({
       local: "cancelling"
     });
@@ -160,7 +189,7 @@ export default class ProjectPane extends React.Component {
           if (this.state.local === "cancelling" &&
               status.state === "REVOKED") {
             this.setState({
-              local: "cancelled"
+              local: null
             });
           }
 
@@ -183,8 +212,6 @@ export default class ProjectPane extends React.Component {
   }
 
   process(force = false) {
-    console.log("Requesting processing...");
-
     this.setState({
       local: "processing"
     });
@@ -221,11 +248,11 @@ export default class ProjectPane extends React.Component {
 
   render() {
     const { name } = this.props;
-    const project = this.props.project;
-    const { remote } = this.state;
-    const { artifacts, images } = this.props.project;
+    const { project, remote } = this.state;
+    const { artifacts, images } = project;
 
     const buttons = this.getButtons();
+    const failure = this.getFailure();
     const spinner = this.getSpinner();
 
     return (
@@ -233,7 +260,7 @@ export default class ProjectPane extends React.Component {
         <div className="x_panel">
           <div className="x_title">
             {/* TODO change to fa-chevron-down when opened; see http://stackoverflow.com/questions/13778703/adding-open-closed-icon-to-twitter-bootstrap-collapsibles-accordions */}
-            <h2><a data-toggle="collapse" href={`#${name}-panel`}><i className="fa fa-chevron-right" /> {name}</a> {spinner}</h2>
+            <h2><a data-toggle="collapse" href={`#${name}-panel`}><i className="fa fa-chevron-right" /> {name}</a> {failure} {spinner}</h2>
 
             <div className="pull-right">
               {buttons}
@@ -246,10 +273,15 @@ export default class ProjectPane extends React.Component {
               <div className="modal-content">
                 <div className="modal-header">
                   <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                  <h4 className="modal-title" id="mySmallModalLabel">Processing {name}...</h4>
+                  <h4 className="modal-title" id="mySmallModalLabel">{name} Status</h4>
                 </div>
                 <div className="modal-body">
-                  <pre dangerouslySetInnerHTML={{ __html: highlight(JSON.stringify(project, null, 2), "json") }} />
+                  <pre
+                    dangerouslySetInnerHTML={{ __html: highlight(JSON.stringify({
+                      project,
+                      remote
+                    }, null, 2), "json") }}
+                  />
                 </div>
               </div>
             </div>
@@ -268,15 +300,17 @@ export default class ProjectPane extends React.Component {
 
               <div className="tab-content">
                 <ProjectOutputPanel
+                  {...this.props}
                   active={remote.state != null}
                   artifacts={artifacts}
-                  {...this.props}
+                  project={project}
                 />
 
                 <ProjectSourcesPanel
+                  {...this.props}
                   active={remote.state == null}
                   sources={images}
-                  {...this.props}
+                  project={project}
                 />
               </div>
             </div>

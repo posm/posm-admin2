@@ -1,6 +1,7 @@
 import React from "react";
 
 import hljs from "highlight.js";
+import prettyBytes from "pretty-bytes";
 
 const highlight = (str, lang) => {
   if (lang != null && hljs.getLanguage(lang)) {
@@ -56,7 +57,7 @@ export default class ProjectSourcesPanel extends React.Component {
   }
 
   getOutputs() {
-    const { artifacts, endpoint } = this.props;
+    const { artifacts, endpoint, name } = this.props;
 
     if (artifacts.length === 0) {
       return null;
@@ -79,11 +80,18 @@ export default class ProjectSourcesPanel extends React.Component {
   }
 
   getPreview() {
-    const { artifacts, name, endpoint } = this.props;
+    const { endpoint, name, project } = this.props;
 
-    if (artifacts.length === 0) {
+    if (project.meta == null) {
       return null;
     }
+
+    const { crs_wkt, height, width } = project.meta;
+    let { bounds, resolution, size } = project.meta;
+
+    bounds = bounds.map(x => x.toFixed(5)).join(", ");
+    resolution = resolution.map(x => `${x.toFixed(2)} m`).join(" × ");
+    size = prettyBytes(size);
 
     return (
       <div className="row">
@@ -93,11 +101,15 @@ export default class ProjectSourcesPanel extends React.Component {
             <div className="caption">
               <dl>
                 <dt>Bounds</dt>
-                <dd>-118, 38, -113, 34</dd>
+                <dd>{bounds}</dd>
+                <dt>Resolution</dt>
+                <dd>{resolution}</dd>
                 <dt>Width × Height</dt>
-                <dd>2881 × 4481</dd>
+                <dd>{width} × {height}</dd>
                 <dt>Filesize</dt>
-                <dd>38729900</dd>
+                <dd>{size}</dd>
+                <dt>Coordinate Reference System</dt>
+                <dd><code>{crs_wkt}</code></dd>
               </dl>
             </div>
           </div>

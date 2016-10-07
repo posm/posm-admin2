@@ -36,7 +36,12 @@ export default class Index extends React.Component {
           title={config.siteTitle}
         />
         <div className="page-title">
-          <h3>OpenDroneMap <small>Projects</small> <button type="button" className="btn btn-primary btn-sm pull-right">New Project</button></h3>
+          <div className="title_left">
+            <h3>OpenDroneMap <small>Projects</small></h3>
+          </div>
+          <div className="title_right">
+            <button type="button" className="btn btn-primary btn-sm pull-right">New Project</button>
+          </div>
         </div>
         <div className="clearfix" />
 

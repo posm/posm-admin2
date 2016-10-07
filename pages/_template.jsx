@@ -189,14 +189,9 @@ export default class Template extends React.Component {
               <div className="menu_section">
                 <h3>Tasks</h3>
                 <ul className="nav side-menu">
-                  <li><Link to={prefixLink("/opendronemap/")}><i className="fa fa-cubes" /> OpenDroneMap</Link>
+                  <li><Link to={prefixLink("/opendronemap/")}><i className="fa fa-paper-plane-o" /> OpenDroneMap</Link>
                   </li>
-                  <li><a><i className="fa fa-cubes" /> GeoTIFF → tiles <span className="fa fa-chevron-down" /></a>
-                    <ul className="nav child_menu">
-                      <li><a href="general_elements.html">Instructions</a></li>
-                      <li><a href="form_advanced.html">Start</a></li>
-                    </ul>
-                  </li>
+                  <li><Link to={prefixLink("/mbtiles/")}><i className="fa fa-cubes" /> MBTiles</Link></li>
                 </ul>
               </div>
 
