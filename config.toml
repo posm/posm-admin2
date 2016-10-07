@@ -1,0 +1,3 @@
+siteTitle = "POSM"
+linkPrefix = "/posm-admin-ii"
+endpoint = "http://172.16.142.145:8000"

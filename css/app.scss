@@ -1,0 +1,12 @@
+$icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/";
+$fa-font-path: "~font-awesome/fonts";
+
+@import "~bootstrap-sass/assets/stylesheets/bootstrap";
+@import "~font-awesome/scss/font-awesome";
+@import "~bootstrap-progressbar/scss/bootstrap-progressbar-3.3.0-3.x.x.scss";
+@import "~gentelella/src/scss/custom";
+
+@import "theme_overrides";
+@import "sidebar";
+
+@import "uav_geotiff";
