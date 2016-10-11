@@ -162,6 +162,8 @@ export default class Template extends React.Component {
   }
 
   componentDidUpdate() {
+    // TODO select the correct task in the menu
+
     setContentHeight();
   }
 
@@ -191,7 +193,7 @@ export default class Template extends React.Component {
                 <ul className="nav side-menu">
                   <li><Link to={prefixLink("/opendronemap/")}><i className="fa fa-paper-plane-o" /> OpenDroneMap</Link>
                   </li>
-                  <li><Link to={prefixLink("/mbtiles/")}><i className="fa fa-cubes" /> MBTiles</Link></li>
+                  <li><Link to={prefixLink("/imagery/")}><i className="fa fa-cubes" /> Imagery</Link></li>
                 </ul>
               </div>
 

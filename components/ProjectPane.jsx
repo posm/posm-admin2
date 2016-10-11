@@ -98,6 +98,8 @@ export default class ProjectPane extends React.Component {
       return (
         <span>
           <a href={`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`} role="button" className="btn btn-success btn-sm">Download GeoTIFF</a>
+          {/* wire up ingest button */}
+          <button type="button" className="btn btn-success btn-sm" onClick={this.ingestSource}>Ingest</button>
           <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
         </span>
       );
@@ -216,6 +218,7 @@ export default class ProjectPane extends React.Component {
     const { endpoint, imageryEndpoint, name, refreshInterval } = this.props;
 
     // TODO start spinner
+    // TODO clean up this mess
 
     // trigger ingestion
     fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`)}`, {
