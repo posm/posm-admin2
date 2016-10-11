@@ -10,13 +10,11 @@ export default class Index extends React.Component {
   }
 
   componentDidMount() {
-    fetch(`${config.endpoint}/projects`)
+    fetch(`${config.odmEndpoint}/projects`)
       .then(rsp => rsp.json())
-      .then(projects => {
-        this.setState({
-          projects
-        });
-      })
+      .then(projects => this.setState({
+        projects
+      }))
       .catch(err => console.warn(err.stack));
   }
 
@@ -26,7 +24,8 @@ export default class Index extends React.Component {
         key={idx}
         name={name}
         project={this.state.projects[name]}
-        endpoint={config.endpoint}
+        endpoint={config.odmEndpoint}
+        imageryEndpoint={config.imageryEndpoint}
       />
     ));
 

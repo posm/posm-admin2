@@ -31,6 +31,7 @@ export default class ProjectPane extends React.Component {
   static propTypes() {
     return {
       endpoint: React.PropTypes.string.isRequired,
+      imageryEndpoint: React.PropTypes.string.isRequired,
       name: React.PropTypes.string.isRequired,
       project: React.PropTypes.object.isRequired,
       refreshInterval: React.PropTypes.integer,
@@ -61,6 +62,7 @@ export default class ProjectPane extends React.Component {
         nextState.remote.state !== this.state.remote.state) {
       const { endpoint, name } = this.props;
 
+      // refresh project metadata
       fetch(`${endpoint}/projects/${name}`)
         .then(rsp => rsp.json())
         .then(project => this.setState({
@@ -92,10 +94,11 @@ export default class ProjectPane extends React.Component {
 
     switch (remote.state) {
     case "SUCCESS": {
+      // TODO check state for an existing MBTiles link
       return (
         <span>
           <a href={`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`} role="button" className="btn btn-success btn-sm">Download GeoTIFF</a>
-          {/* <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button> */}
+          <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
         </span>
       );
     }
@@ -209,6 +212,96 @@ export default class ProjectPane extends React.Component {
 
   makeMBTiles() {
     console.log("Requesting MBTiles generation...");
+
+    const { endpoint, imageryEndpoint, name, refreshInterval } = this.props;
+
+    // TODO start spinner
+
+    // trigger ingestion
+    fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`)}`, {
+      method: "POST"
+    })
+      .then(rsp => rsp.json())
+      .then(source => {
+        const imageryChecker = setInterval(() => {
+          fetch(`${imageryEndpoint}/imagery/${source.name}/ingest/status`)
+            .then(rsp => rsp.json())
+            .then(status => {
+              switch (status.state) {
+              case "FAILURE":
+              case "REVOKED": {
+                console.warn("Ingestion failed:", status);
+                clearInterval(imageryChecker);
+                break;
+              }
+
+              case "SUCCESS": {
+                clearInterval(imageryChecker);
+
+                // update metdata
+                fetch(`${endpoint}/projects/${name}`, {
+                  body: JSON.stringify({
+                    imagery: `${imageryEndpoint}/imagery/${source.name}`
+                  }),
+                  method: "PATCH"
+                })
+                  .then(rsp => rsp.json())
+                  .then(rsp => console.log)
+                  .catch(err => console.warn(err.stack));
+
+                fetch(`${imageryEndpoint}/imagery/${source.name}/mbtiles`, {
+                  method: "POST"
+                })
+                  .then(rsp => rsp.json())
+                  .then(status => {
+                    const mbtilesChecker = setInterval(() => {
+                      fetch(`${imageryEndpoint}/imagery/${source.name}/mbtiles/status`)
+                        .then(rsp => rsp.json())
+                        .then(status => {
+                          switch (status.state) {
+                          case "FAILURE":
+                          case "REVOKED": {
+                            console.warn("MBTiles generation failed:", status);
+                            clearInterval(mbtilesChecker);
+                            break;
+                          }
+
+                          case "SUCCESS": {
+                            clearInterval(mbtilesChecker);
+
+                            // update metdata
+                            fetch(`${endpoint}/projects/${name}`, {
+                              body: JSON.stringify({
+                                mbtiles: `${imageryEndpoint}/imagery/${source.name}/mbtiles`
+                              }),
+                              method: "PATCH"
+                            })
+                              .then(rsp => rsp.json())
+                              // TODO stop spinner, display MBTiles download link
+                              .then(rsp => console.log)
+                              .catch(err => console.warn(err.stack));
+
+                            break;
+                          }
+
+                          default:
+                          }
+                        })
+                        .catch(err => console.warn(err.stack));
+                    }, refreshInterval);
+                  })
+                  .catch(err => console.warn(err.stack));
+
+                break;
+              }
+
+              default:
+              }
+            })
+            .catch(err => console.warn(err.stack));
+        }, refreshInterval);
+      })
+      .catch(err => console.warn(err.stack));
   }
 
   process(force = false) {
