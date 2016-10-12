@@ -51,7 +51,7 @@
   "license": "BSD",
   "main": "n/a",
   "scripts": {
-    "build": "gatsby build",
+    "build": "gatsby build --prefix-links",
     "deploy": "gatsby build --prefix-links && gh-pages -d public",
     "develop": "gatsby develop",
     "start": "gatsby develop -p ${PORT:-8000}"
