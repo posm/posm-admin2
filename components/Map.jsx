@@ -1,4 +1,3 @@
-import Leaflet from "leaflet";
 import React from "react";
 
 import "leaflet/dist/leaflet.css";
@@ -15,6 +14,9 @@ export default class Map extends React.Component {
 
   componentDidMount() {
     const { bounds, maxzoom, minzoom, url } = this.props;
+
+    // Leaflet needs to be required here so that it's not available in a server context
+    const Leaflet = require("leaflet");
 
     // TODO retina
 

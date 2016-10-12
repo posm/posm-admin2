@@ -2,27 +2,22 @@ import React from "react";
 import { Link } from "react-router";
 import { prefixLink } from "gatsby-helpers";
 
-import "expose?$!expose?jQuery!jquery";
-
-import "imports?jQuery=jquery!bootstrap-sass";
-import "fastclick";
-import "imports?jQuery=jquery&window=>{jQuery}!bootstrap-progressbar/bootstrap-progressbar";
-import "imports?jQuery=jquery!gentelella/src/js/helper";
+import $ from "jquery";
 
 import "../css/app.scss";
 import "../css/markdown-styles.css";
 import posmLogo from "../images/posm_logo-primary.png";
 import posmLogoRetina from "../images/posm_logo-primary@2x.png";
 
-let CURRENT_URL = window.location.href.split('?')[0];
-let $BODY = $('body');
-let $MENU_TOGGLE = $('#menu_toggle');
-let $SIDEBAR_MENU = $('#sidebar-menu');
-let $SIDEBAR_FOOTER = $('.sidebar-footer');
-let $LEFT_COL = $('.left_col');
-let $RIGHT_COL = $('.right_col');
-let $NAV_MENU = $('.nav_menu');
-let $FOOTER = $('footer');
+let CURRENT_URL;
+let $BODY;
+let $MENU_TOGGLE;
+let $SIDEBAR_MENU;
+let $SIDEBAR_FOOTER;
+let $LEFT_COL;
+let $RIGHT_COL;
+let $NAV_MENU;
+let $FOOTER;
 
 var setContentHeight = function () {
   // reset height
@@ -47,6 +42,12 @@ export default class Template extends React.Component {
   }
 
   componentDidMount() {
+    // these need to be required in a browser context
+    require("bootstrap-sass");
+    require("fastclick");
+    require("bootstrap-progressbar/bootstrap-progressbar");
+    require("gentelella/src/js/helper");
+
     // these are onready functions from gentelella's custom.js
     CURRENT_URL = window.location.href.split('?')[0];
     $BODY = $('body');
