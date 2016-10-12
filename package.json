@@ -54,6 +54,6 @@
     "build": "gatsby build",
     "deploy": "gatsby build --prefix-links && gh-pages -d public",
     "develop": "gatsby develop",
-    "start": "gatsby develop"
+    "start": "gatsby develop -p ${PORT:-8000}"
   }
 }
