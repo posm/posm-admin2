@@ -1,4 +1,9 @@
-const webpack = require("webpack");
+var fs = require("fs");
+
+var toml = require("toml"),
+    webpack = require("webpack");
+
+var linkPrefix = toml.parse(fs.readFileSync("./config.toml")).linkPrefix;
 
 exports.modifyWebpackConfig = function(config, env) {
   config.plugin("provide", webpack.ProvidePlugin, [{
@@ -7,6 +12,14 @@ exports.modifyWebpackConfig = function(config, env) {
     jQuery: "jquery",
     "window.jQuery": "jquery",
   }]);
+
+  if (linkPrefix) {
+    config.merge({
+      output: {
+        publicPath: linkPrefix + "/",
+      },
+    });
+  }
 
   return config;
 };
