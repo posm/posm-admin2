@@ -1,4 +1,4 @@
 siteTitle = "POSM"
-linkPrefix = "/posm-admin-ii"
-odmEndpoint = "http://172.16.142.145:8000"
-imageryEndpoint = "http://172.16.142.145:8001"
+linkPrefix = "/admin"
+odmEndpoint = "http://posm.io"
+imageryEndpoint = "http://posm.io"
