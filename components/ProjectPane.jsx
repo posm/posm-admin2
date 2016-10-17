@@ -23,6 +23,7 @@ export default class ProjectPane extends React.Component {
     super(props);
 
     this.cancel = this.cancel.bind(this);
+    this.delete = this.delete.bind(this);
     this.ingestSource = this.ingestSource.bind(this);
     this.makeMBTiles = this.makeMBTiles.bind(this);
     this.process = this.process.bind(this);
@@ -53,6 +54,20 @@ export default class ProjectPane extends React.Component {
 
   componentWillUnmount() {
     this.stopMonitoring();
+  }
+
+  getDeleteButton() {
+    const { pending } = this.state;
+
+    if (pending.indexOf("deleting") >= 0) {
+      return (
+        <button type="button" className="btn btn-danger btn-sm">Deleting <i className="fa fa-circle-o-notch fa-spin" /></button>
+      );
+    }
+
+    return (
+      <button type="button" className="btn btn-danger btn-sm" onClick={this.delete}>Delete</button>
+    );
   }
 
   getIngestButton() {
@@ -89,7 +104,6 @@ export default class ProjectPane extends React.Component {
   }
 
   getButtons() {
-    // TODO delete
     const { endpoint } = this.props;
     const { pending, project } = this.state;
     const { status } = project;
@@ -174,6 +188,7 @@ export default class ProjectPane extends React.Component {
   }
 
   cancel() {
+    const { endpoint } = this.props;
     const { pending } = this.state;
 
     if (pending.indexOf("cancelling") >= 0) {
@@ -187,8 +202,6 @@ export default class ProjectPane extends React.Component {
       showSpinner: true,
     });
 
-    const { endpoint } = this.props;
-
     fetch(`${endpoint}/process`, {
       method: "DELETE",
     }).then(rsp => {
@@ -200,6 +213,40 @@ export default class ProjectPane extends React.Component {
       }
 
       this.setState({
+        pending: pending.splice(pending.indexOf("cancelling"), 1),
+        showSpinner: false,
+      });
+    }).catch(err => {
+      console.warn(err.stack);
+    });
+  }
+
+  delete() {
+    const { endpoint } = this.props;
+    const { pending } = this.state;
+
+    if (pending.indexOf("deleting") >= 0) {
+      throw new Error("Already deleting.");
+    }
+
+    pending.push("deleting");
+    this.setState({
+      pending,
+      showSpinner: true,
+    });
+
+    fetch(`${endpoint}`, {
+      method: "DELETE",
+    }).then(rsp => {
+      console.log("rsp:", rsp);
+
+      if (rsp.status >= 400) {
+        // TODO display the underlying error message
+        throw new Error("Failed.");
+      }
+
+      this.setState({
+        pending: pending.splice(pending.indexOf("deleting"), 1),
         showSpinner: false,
       });
     }).catch(err => {
@@ -503,6 +550,7 @@ export default class ProjectPane extends React.Component {
     const projectName = user.name || name;
 
     const buttons = this.getButtons();
+    const deleteButton = this.getDeleteButton();
     const failure = this.getFailure();
     const spinner = this.getSpinner();
 
@@ -515,6 +563,7 @@ export default class ProjectPane extends React.Component {
 
             <div className="pull-right">
               {buttons}
+              {/* TODO wire this up (needs API implementation) deleteButton */}
             </div>
             <div className="clearfix" />
           </div>
