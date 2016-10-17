@@ -77,12 +77,12 @@ export default class ProjectPane extends React.Component {
     if (user.imagery == null) {
       if (pending.indexOf("ingesting") >= 0) {
         return (
-          <button type="button" className="btn btn-success btn-sm">Ingesting <i className="fa fa-circle-o-notch fa-spin" /></button>
+          <button type="button" className="btn btn-dark btn-sm">Ingesting <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
       }
 
       return (
-        <button type="button" className="btn btn-success btn-sm" onClick={this.ingestSource}>Ingest</button>
+        <button type="button" className="btn btn-dark btn-sm" onClick={this.ingestSource}>Ingest</button>
       );
     }
 
@@ -94,7 +94,7 @@ export default class ProjectPane extends React.Component {
 
     if (user.mbtiles == null) {
       return (
-        <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
+        <button type="button" className="btn btn-dark btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
       );
     }
 
