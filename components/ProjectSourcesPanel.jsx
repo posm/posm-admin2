@@ -64,6 +64,7 @@ export default class ProjectSourcesPanel extends React.Component {
           {thumbnails}
         </div>
 
+        {/* TODO allow additional files to be uploaded */}
         {showAllButton}
       </div>
     );
