@@ -24,13 +24,18 @@ export default class ImageryPane extends React.Component {
   }
 
   state = {
+    pending: null,
     source: this.props.source,
-    remote: this.props.source.meta.status,
   }
 
   componentDidMount() {
     // monitor status
     this.monitorStatus();
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    // TODO implement these by doing a deep equality comparison on state.{pending,source}
+    return true;
   }
 
   componentWillUnmount() {
@@ -39,10 +44,11 @@ export default class ImageryPane extends React.Component {
 
   getButtons() {
     const { endpoint } = this.props;
-    const { local, remote } = this.state;
+    const { pending, source } = this.state;
+    const { status } = source.meta;
 
     if (this.isRunning()) {
-      if (local === "cancelling") {
+      if (pending === "cancelling") {
         return (
           <button type="button" className="btn btn-warning btn-sm">Cancelling <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
@@ -53,15 +59,15 @@ export default class ImageryPane extends React.Component {
       );
     }
 
-    switch (remote.ingest.state) {
+    switch (status.ingest.state) {
     case "SUCCESS": {
-      if (local === "processing") {
+      if (pending === "processing") {
         return (
           <button type="button" className="btn btn-primary btn-sm">Processing <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
       }
 
-      if (remote.mbtiles.state !== "SUCCESS") {
+      if (status.mbtiles.state !== "SUCCESS") {
         return (
           <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
         );
@@ -81,10 +87,10 @@ export default class ImageryPane extends React.Component {
   }
 
   getFailure() {
-    const { remote } = this.state;
+    const { status } = this.state.source.meta;
 
-    if (remote.ingest.state !== "FAILURE" &&
-        remote.mbtiles.state !== "FAILURE") {
+    if (status.ingest.state !== "FAILURE" &&
+        status.mbtiles.state !== "FAILURE") {
       return null;
     }
 
@@ -107,7 +113,7 @@ export default class ImageryPane extends React.Component {
 
   cancel() {
     this.setState({
-      local: "cancelling"
+      pending: "cancelling"
     });
 
     const { endpoint } = this.props;
@@ -130,7 +136,7 @@ export default class ImageryPane extends React.Component {
     const { endpoint, refreshInterval } = this.props;
 
     this.statusChecker = setInterval(() => {
-      fetch(`${endpoint}/mbtiles/status`)
+      fetch(endpoint)
         .then(rsp => {
           if (!rsp.ok) {
             console.log("bad response");
@@ -138,16 +144,13 @@ export default class ImageryPane extends React.Component {
 
           return rsp.json();
         })
-        .then(status => {
+        .then(source => {
           this.setState({
-            local: null
+            pending: null
           });
 
           this.setState({
-            remote: {
-              ingest: this.state.remote.ingest,
-              mbtiles: status,
-            }
+            source,
           });
         })
         .catch(err => {
@@ -162,7 +165,7 @@ export default class ImageryPane extends React.Component {
 
   makeMBTiles() {
     this.setState({
-      local: "processing"
+      pending: "processing"
     });
 
     const { endpoint } = this.props;
@@ -181,9 +184,9 @@ export default class ImageryPane extends React.Component {
   }
 
   isRunning() {
-    const { remote } = this.state;
+    const { source } = this.state;
 
-    return remote.mbtiles != null && ["PENDING", "RUNNING"].indexOf(remote.mbtiles.state) >= 0;
+    return source.mbtiles != null && ["PENDING", "RUNNING"].indexOf(source.mbtiles.state) >= 0;
   }
 
   render() {
@@ -228,6 +231,8 @@ export default class ImageryPane extends React.Component {
             </div>
           </div>
 
+          {/* TODO display URL template / TileJSON URL */}
+          {/* TODO make GDAL XML available for download */}
           {/* TODO default to closed and trigger leaflet.invalidateSize when opened */}
           <div className="x_content panel-collapse collapse in" id={`${name}-panel`}>
             <Map

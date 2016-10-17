@@ -1,27 +1,8 @@
 import React from "react";
 
-import hljs from "highlight.js";
-
+import highlight from "../utils/highlight";
 import ProjectOutputPanel from "./ProjectOutputPanel";
 import ProjectSourcesPanel from "./ProjectSourcesPanel";
-
-const highlight = (str, lang) => {
-  if (lang != null && hljs.getLanguage(lang)) {
-    try {
-      return hljs.highlight(lang, str).value;
-    } catch (err) {
-      console.error(err.stack);
-    }
-  }
-
-  try {
-    return hljs.highlightAuto(str).value;
-  } catch (err) {
-    console.error(err.stack);
-  }
-
-  return "";
-};
 
 export default class ProjectPane extends React.Component {
   static defaultProps = {
@@ -42,9 +23,10 @@ export default class ProjectPane extends React.Component {
     super(props);
 
     this.cancel = this.cancel.bind(this);
+    this.ingestSource = this.ingestSource.bind(this);
+    this.makeMBTiles = this.makeMBTiles.bind(this);
     this.process = this.process.bind(this);
     this.reprocess = this.reprocess.bind(this);
-    this.makeMBTiles = this.makeMBTiles.bind(this);
   }
 
   state = {
@@ -95,10 +77,10 @@ export default class ProjectPane extends React.Component {
     switch (remote.state) {
     case "SUCCESS": {
       // TODO check state for an existing MBTiles link
+      // TODO check state for an existing imagery link
       return (
         <span>
           <a href={`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`} role="button" className="btn btn-success btn-sm">Download GeoTIFF</a>
-          {/* wire up ingest button */}
           <button type="button" className="btn btn-success btn-sm" onClick={this.ingestSource}>Ingest</button>
           <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
         </span>
@@ -178,6 +160,58 @@ export default class ProjectPane extends React.Component {
     });
   }
 
+  ingestSource() {
+    console.log("Ingesting source...");
+
+    const { endpoint, imageryEndpoint, name, refreshInterval } = this.props;
+
+    // TODO start spinner
+    // TODO clean up this mess
+
+    // trigger ingestion
+    fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`)}`, {
+      method: "POST"
+    })
+      .then(rsp => rsp.json())
+      .then(source => {
+        const imageryChecker = setInterval(() => {
+          fetch(`${imageryEndpoint}/imagery/${source.name}/ingest/status`)
+            .then(rsp => rsp.json())
+            .then(status => {
+              switch (status.state) {
+              case "FAILURE":
+              case "REVOKED": {
+                console.warn("Ingestion failed:", status);
+                clearInterval(imageryChecker);
+                break;
+              }
+
+              case "SUCCESS": {
+                clearInterval(imageryChecker);
+
+                // update metadata
+                fetch(`${endpoint}/projects/${name}`, {
+                  body: JSON.stringify({
+                    imagery: `${imageryEndpoint}/imagery/${source.name}`
+                  }),
+                  method: "PATCH"
+                })
+                  .then(rsp => rsp.json())
+                  .then(rsp => console.log)
+                  .catch(err => console.warn(err.stack));
+
+                break;
+              }
+
+              default:
+              }
+            })
+            .catch(err => console.warn(err.stack));
+        }, refreshInterval);
+      })
+      .catch(err => console.warn(err.stack));
+  }
+
   monitorStatus() {
     const { endpoint, name, refreshInterval } = this.props;
 
@@ -241,7 +275,7 @@ export default class ProjectPane extends React.Component {
               case "SUCCESS": {
                 clearInterval(imageryChecker);
 
-                // update metdata
+                // update metadata
                 fetch(`${endpoint}/projects/${name}`, {
                   body: JSON.stringify({
                     imagery: `${imageryEndpoint}/imagery/${source.name}`
@@ -272,7 +306,7 @@ export default class ProjectPane extends React.Component {
                           case "SUCCESS": {
                             clearInterval(mbtilesChecker);
 
-                            // update metdata
+                            // update metadata
                             fetch(`${endpoint}/projects/${name}`, {
                               body: JSON.stringify({
                                 mbtiles: `${imageryEndpoint}/imagery/${source.name}/mbtiles`

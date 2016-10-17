@@ -3,9 +3,9 @@ import React from "react";
 import "leaflet/dist/leaflet.css";
 
 const MEDIA_QUERY = `(-webkit-min-device-pixel-ratio: 1.5),
-                  (min--moz-device-pixel-ratio: 1.5),
-                  (-o-min-device-pixel-ratio: 3/2),
-                  (min-resolution: 1.5dppx)`;
+                     (min--moz-device-pixel-ratio: 1.5),
+                     (-o-min-device-pixel-ratio: 3/2),
+                     (min-resolution: 1.5dppx)`;
 
 export default class Map extends React.Component {
   static propTypes() {
