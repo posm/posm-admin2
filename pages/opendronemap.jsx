@@ -24,7 +24,7 @@ export default class Index extends React.Component {
         key={idx}
         name={name}
         project={this.state.projects[name]}
-        endpoint={config.odmEndpoint}
+        endpoint={`${config.odmEndpoint}/projects/${name}`}
         imageryEndpoint={config.imageryEndpoint}
       />
     ));

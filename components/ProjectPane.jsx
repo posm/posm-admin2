@@ -42,10 +42,10 @@ export default class ProjectPane extends React.Component {
   componentWillUpdate(nextProps, nextState) {
     if (nextState.remote.state === "SUCCESS" &&
         nextState.remote.state !== this.state.remote.state) {
-      const { endpoint, name } = this.props;
+      const { endpoint } = this.props;
 
       // refresh project metadata
-      fetch(`${endpoint}/projects/${name}`)
+      fetch(endpoint)
         .then(rsp => rsp.json())
         .then(project => this.setState({
           project
@@ -59,7 +59,7 @@ export default class ProjectPane extends React.Component {
   }
 
   getButtons() {
-    const { endpoint, name } = this.props;
+    const { endpoint } = this.props;
     const { local, remote } = this.state;
 
     if (this.isRunning()) {
@@ -80,7 +80,7 @@ export default class ProjectPane extends React.Component {
       // TODO check state for an existing imagery link
       return (
         <span>
-          <a href={`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`} role="button" className="btn btn-success btn-sm">Download GeoTIFF</a>
+          <a href={`${endpoint}/artifacts/odm_orthophoto.tif`} role="button" className="btn btn-success btn-sm">Download GeoTIFF</a>
           <button type="button" className="btn btn-success btn-sm" onClick={this.ingestSource}>Ingest</button>
           <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
         </span>
@@ -144,9 +144,9 @@ export default class ProjectPane extends React.Component {
       local: "cancelling"
     });
 
-    const { endpoint, name } = this.props;
+    const { endpoint } = this.props;
 
-    fetch(`${endpoint}/projects/${name}/process`, {
+    fetch(`${endpoint}/process`, {
       method: "DELETE",
     }).then(rsp => {
       console.log("rsp:", rsp);
@@ -163,13 +163,13 @@ export default class ProjectPane extends React.Component {
   ingestSource() {
     console.log("Ingesting source...");
 
-    const { endpoint, imageryEndpoint, name, refreshInterval } = this.props;
+    const { endpoint, imageryEndpoint, refreshInterval } = this.props;
 
     // TODO start spinner
     // TODO clean up this mess
 
     // trigger ingestion
-    fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`)}`, {
+    fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/artifacts/odm_orthophoto.tif`)}`, {
       method: "POST"
     })
       .then(rsp => rsp.json())
@@ -190,7 +190,7 @@ export default class ProjectPane extends React.Component {
                 clearInterval(imageryChecker);
 
                 // update metadata
-                fetch(`${endpoint}/projects/${name}`, {
+                fetch(endpoint, {
                   body: JSON.stringify({
                     imagery: `${imageryEndpoint}/imagery/${source.name}`
                   }),
@@ -213,10 +213,10 @@ export default class ProjectPane extends React.Component {
   }
 
   monitorStatus() {
-    const { endpoint, name, refreshInterval } = this.props;
+    const { endpoint, refreshInterval } = this.props;
 
     this.statusChecker = setInterval(() => {
-      fetch(`${endpoint}/projects/${name}/status`)
+      fetch(`${endpoint}/status`)
         .then(rsp => {
           if (!rsp.ok) {
             console.log("bad response");
@@ -249,13 +249,13 @@ export default class ProjectPane extends React.Component {
   makeMBTiles() {
     console.log("Requesting MBTiles generation...");
 
-    const { endpoint, imageryEndpoint, name, refreshInterval } = this.props;
+    const { endpoint, imageryEndpoint, refreshInterval } = this.props;
 
     // TODO start spinner
     // TODO clean up this mess
 
     // trigger ingestion
-    fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/projects/${name}/artifacts/odm_orthophoto.tif`)}`, {
+    fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/artifacts/odm_orthophoto.tif`)}`, {
       method: "POST"
     })
       .then(rsp => rsp.json())
@@ -276,7 +276,7 @@ export default class ProjectPane extends React.Component {
                 clearInterval(imageryChecker);
 
                 // update metadata
-                fetch(`${endpoint}/projects/${name}`, {
+                fetch(endpoint, {
                   body: JSON.stringify({
                     imagery: `${imageryEndpoint}/imagery/${source.name}`
                   }),
@@ -307,7 +307,7 @@ export default class ProjectPane extends React.Component {
                             clearInterval(mbtilesChecker);
 
                             // update metadata
-                            fetch(`${endpoint}/projects/${name}`, {
+                            fetch(endpoint, {
                               body: JSON.stringify({
                                 mbtiles: `${imageryEndpoint}/imagery/${source.name}/mbtiles`
                               }),
@@ -346,14 +346,14 @@ export default class ProjectPane extends React.Component {
       local: "processing"
     });
 
-    const { endpoint, name } = this.props;
+    const { endpoint } = this.props;
     let qs = "";
 
     if (force) {
       qs += "force=true";
     }
 
-    fetch(`${endpoint}/projects/${name}/process?${qs}`, {
+    fetch(`${endpoint}/process?${qs}`, {
       method: "POST",
     }).then(rsp => {
       console.log("rsp:", rsp);

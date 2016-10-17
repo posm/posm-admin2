@@ -44,20 +44,20 @@ export default class ProjectSourcesPanel extends React.Component {
   }
 
   getLogs() {
-    const { endpoint, name } = this.props;
+    const { endpoint } = this.props;
     return (
       <div>
         <h4 className="x_title">Logs</h4>
         <ul className="row list-unstyled">
-          <li className="col-xs-4"><a href={`${endpoint}/projects/${name}/logs/stderr`}><code>stderr.log</code></a></li>
-          <li className="col-xs-4"><a href={`${endpoint}/projects/${name}/logs/stdout`}><code>stdout.log</code></a></li>
+          <li className="col-xs-4"><a href={`${endpoint}/logs/stderr`}><code>stderr.log</code></a></li>
+          <li className="col-xs-4"><a href={`${endpoint}/logs/stdout`}><code>stdout.log</code></a></li>
         </ul>
       </div>
     );
   }
 
   getOutputs() {
-    const { artifacts, endpoint, name } = this.props;
+    const { artifacts, endpoint } = this.props;
 
     if (artifacts.length === 0) {
       return null;
@@ -70,7 +70,7 @@ export default class ProjectSourcesPanel extends React.Component {
           {
             artifacts.map((artifact, col) => (
               <li className="col-xs-4" key={col}>
-                <a href={`${endpoint}/projects/${name}/artifacts/${artifact}`}><code>{artifact}</code></a>
+                <a href={`${endpoint}/artifacts/${artifact}`}><code>{artifact}</code></a>
               </li>
             ))
           }
@@ -80,7 +80,7 @@ export default class ProjectSourcesPanel extends React.Component {
   }
 
   getPreview() {
-    const { endpoint, name, project } = this.props;
+    const { endpoint, project } = this.props;
 
     if (project.meta == null) {
       return null;
@@ -97,7 +97,7 @@ export default class ProjectSourcesPanel extends React.Component {
       <div className="row">
         <div className="col-md-4">
           <div className="thumbnail">
-            <img src={`${endpoint}/projects/${name}/artifacts/ortho_thumb.png`} />
+            <img src={`${endpoint}/artifacts/ortho_thumb.png`} />
             <div className="caption">
               <dl>
                 <dt>Bounds</dt>
