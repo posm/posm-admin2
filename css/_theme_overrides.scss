@@ -23,3 +23,7 @@ img {
 .modal-footer .btn + .btn {
   margin-bottom: 5px;
 }
+
+.dropzone .dz-preview.dz-image-preview {
+  background-color: transparent;
+}

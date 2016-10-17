@@ -74,10 +74,10 @@ export default class ProjectPane extends React.Component {
     const { pending, project } = this.state;
     const { user } = project;
 
-    if (user.imagery == null) {
+    if (user.imagery == null && pending.indexOf("mbtiles") < 0) {
       if (pending.indexOf("ingesting") >= 0) {
         return (
-          <button type="button" className="btn btn-dark btn-sm">Ingesting <i className="fa fa-circle-o-notch fa-spin" /></button>
+          <button type="button" className="btn btn-warning btn-sm">Ingesting <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
       }
 
@@ -91,8 +91,21 @@ export default class ProjectPane extends React.Component {
 
   getMBTilesButton() {
     const { user } = this.state.project;
+    const { pending } = this.state;
 
     if (user.mbtiles == null) {
+      if (pending.indexOf("mbtiles") >= 0) {
+        return (
+          <button type="button" className="btn btn-warning btn-sm">Making MBTiles <i className="fa fa-circle-o-notch fa-spin" /></button>
+        );
+      }
+
+      if (pending.indexOf("ingesting") >= 0) {
+        return (
+          <button type="button" className="btn btn-dark btn-sm">Make MBTiles</button>
+        );
+      }
+
       return (
         <button type="button" className="btn btn-dark btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
       );
@@ -254,10 +267,49 @@ export default class ProjectPane extends React.Component {
     });
   }
 
+  checkIngestionStatus(source, failureCallback, successCallback) {
+    const { imageryEndpoint } = this.props;
+
+    fetch(`${imageryEndpoint}/imagery/${source.name}/ingest/status`)
+      .then(rsp => rsp.json())
+      .then(status => {
+        switch (status.state) {
+        case "FAILURE":
+        case "REVOKED": {
+          failureCallback(status);
+
+          break;
+        }
+
+        case "SUCCESS": {
+          successCallback(status);
+
+          break;
+        }
+
+        default:
+        }
+      })
+      .catch(err => console.warn(err.stack));
+  }
+
+  updateMetadata(body, successCallback) {
+    const { endpoint } = this.props;
+
+    // update metadata
+    fetch(endpoint, {
+      body: JSON.stringify(body),
+      method: "PATCH"
+    })
+      .then(rsp => rsp.json())
+      .then(rsp => successCallback)
+      .catch(err => console.warn(err.stack));
+  }
+
   ingestSource() {
     console.log("Ingesting source...");
 
-    const { endpoint, imageryEndpoint, refreshInterval } = this.props;
+    const { imageryEndpoint, refreshInterval } = this.props;
     let { pending } = this.state;
 
     if (pending.indexOf("ingesting") >= 0) {
@@ -269,70 +321,37 @@ export default class ProjectPane extends React.Component {
     // start spinner
     this.setState({
       pending,
-      showSpinner: true,
     });
 
-    // TODO clean up this mess
-
     // trigger ingestion
-    fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/artifacts/odm_orthophoto.tif`)}`, {
-      method: "POST"
-    })
-      .then(rsp => rsp.json())
-      .then(source => {
-        const imageryChecker = setInterval(() => {
-          fetch(`${imageryEndpoint}/imagery/${source.name}/ingest/status`)
-            .then(rsp => rsp.json())
-            .then(status => {
-              switch (status.state) {
-              case "FAILURE":
-              case "REVOKED": {
-                console.warn("Ingestion failed:", status);
-                clearInterval(imageryChecker);
+    this.ingest(source => {
+      // TODO move interval into ingest()
+      const imageryChecker = setInterval(() => {
+        this.checkIngestionStatus(source, status => {
+          console.warn("Ingestion failed:", status);
+          clearInterval(imageryChecker);
 
-                pending = this.state.pending;
+          pending = this.state.pending;
 
-                this.setState({
-                  pending: pending.splice(pending.indexOf("ingesting"), 1),
-                  showSpinner: false,
-                });
+          this.setState({
+            pending: pending.splice(pending.indexOf("ingesting"), 1),
+          });
+        }, status => {
+          clearInterval(imageryChecker);
 
-                break;
-              }
+          // update metadata
+          this.updateMetadata({
+            imagery: `${imageryEndpoint}/imagery/${source.name}`
+          }, rsp => {
+            pending = this.state.pending;
 
-              case "SUCCESS": {
-                clearInterval(imageryChecker);
-
-                // update metadata
-                fetch(endpoint, {
-                  body: JSON.stringify({
-                    imagery: `${imageryEndpoint}/imagery/${source.name}`
-                  }),
-                  method: "PATCH"
-                })
-                  .then(rsp => rsp.json())
-                  .then(rsp => {
-                    console.log(rsp);
-
-                    pending = this.state.pending;
-
-                    this.setState({
-                      pending: pending.splice(pending.indexOf("ingesting"), 1),
-                      showSpinner: false,
-                    });
-                  })
-                  .catch(err => console.warn(err.stack));
-
-                break;
-              }
-
-              default:
-              }
-            })
-            .catch(err => console.warn(err.stack));
-        }, refreshInterval);
-      })
-      .catch(err => console.warn(err.stack));
+            this.setState({
+              pending: pending.splice(pending.indexOf("ingesting"), 1),
+            });
+          });
+        });
+      }, refreshInterval);
+    });
   }
 
   monitor() {
@@ -371,114 +390,41 @@ export default class ProjectPane extends React.Component {
     clearInterval(this.checker);
   }
 
-  makeMBTiles() {
-    console.log("Requesting MBTiles generation...");
+  ingest(callback) {
+    const { endpoint, imageryEndpoint } = this.props;
 
-    const { endpoint, imageryEndpoint, refreshInterval } = this.props;
-    const { user } = this.state.project;
-
-    if (user.imagery) {
-      // imagery already ingested
-    }
-
-    // start spinner
-    this.setState({
-      showSpinner: true,
-    });
-
-    // TODO clean up this mess
-
-    // trigger ingestion (only if necessary)
     fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/artifacts/odm_orthophoto.tif`)}`, {
       method: "POST"
+    }).then(rsp => rsp.json())
+      .then(callback)
+      .catch(err => console.warn(err.stack));
+  }
+
+  requestMBTiles(endpoint, failureCallback, successCallback) {
+    const { refreshInterval } = this.props;
+
+    fetch(`${endpoint}/mbtiles`, {
+      method: "POST"
     })
-      .then(rsp => rsp.json())
-      .then(source => {
-        const imageryChecker = setInterval(() => {
-          fetch(`${imageryEndpoint}/imagery/${source.name}/ingest/status`)
+      .then(rsp => {
+        const mbtilesChecker = setInterval(() => {
+          fetch(`${endpoint}/mbtiles/status`)
             .then(rsp => rsp.json())
             .then(status => {
               switch (status.state) {
               case "FAILURE":
               case "REVOKED": {
-                console.warn("Ingestion failed:", status);
-                clearInterval(imageryChecker);
+                clearInterval(mbtilesChecker);
 
-                this.setState({
-                  showSpinner: false,
-                });
+                failureCallback(status);
 
                 break;
               }
 
               case "SUCCESS": {
-                clearInterval(imageryChecker);
+                clearInterval(mbtilesChecker);
 
-                // update metadata
-                fetch(endpoint, {
-                  body: JSON.stringify({
-                    imagery: `${imageryEndpoint}/imagery/${source.name}`
-                  }),
-                  method: "PATCH"
-                })
-                  .then(rsp => rsp.json())
-                  .then(rsp => console.log)
-                  .catch(err => console.warn(err.stack));
-
-                fetch(`${imageryEndpoint}/imagery/${source.name}/mbtiles`, {
-                  method: "POST"
-                })
-                  .then(rsp => rsp.json())
-                  .then(status => {
-                    const mbtilesChecker = setInterval(() => {
-                      fetch(`${imageryEndpoint}/imagery/${source.name}/mbtiles/status`)
-                        .then(rsp => rsp.json())
-                        .then(status => {
-                          switch (status.state) {
-                          case "FAILURE":
-                          case "REVOKED": {
-                            console.warn("MBTiles generation failed:", status);
-                            clearInterval(mbtilesChecker);
-
-                            this.setState({
-                              showSpinner: false,
-                            });
-
-                            break;
-                          }
-
-                          case "SUCCESS": {
-                            clearInterval(mbtilesChecker);
-
-                            console.log("Marking presence of MBTiles");
-                            // update metadata
-                            fetch(endpoint, {
-                              body: JSON.stringify({
-                                mbtiles: `${imageryEndpoint}/imagery/${source.name}/mbtiles`
-                              }),
-                              method: "PATCH"
-                            })
-                              .then(rsp => rsp.json())
-                              .then(rsp => console.log)
-                              .then(rsp => {
-                                console.log(rsp);
-
-                                this.setState({
-                                  showSpinner: false,
-                                });
-                              })
-                              .catch(err => console.warn(err.stack));
-
-                            break;
-                          }
-
-                          default:
-                          }
-                        })
-                        .catch(err => console.warn(err.stack));
-                    }, refreshInterval);
-                  })
-                  .catch(err => console.warn(err.stack));
+                successCallback(status);
 
                 break;
               }
@@ -490,6 +436,101 @@ export default class ProjectPane extends React.Component {
         }, refreshInterval);
       })
       .catch(err => console.warn(err.stack));
+  }
+
+  makeMBTiles() {
+    console.log("Requesting MBTiles generation...");
+
+    const { imageryEndpoint, refreshInterval } = this.props;
+    let { pending } = this.state;
+    const { user } = this.state.project;
+
+    if (pending.indexOf("mbtiles") >= 0) {
+      throw new Error("MBTiles generation already in process.");
+    }
+
+    pending.push("mbtiles");
+
+    // start spinner
+    this.setState({
+      pending,
+    });
+
+    if (user.imagery) {
+      // imagery already ingested
+      return this.requestMBTiles(user.imagery, status => {
+        console.warn("MBTiles generation failed:", status);
+
+        pending = this.state.pending;
+
+        this.setState({
+          pending: pending.splice(pending.indexOf("mbtiles"), 1),
+        });
+      }, status => {
+        console.log("Marking presence of MBTiles");
+
+        this.updateMetadata({
+          mbtiles: `${user.imagery}/mbtiles`
+        }, rsp => {
+          pending = this.state.pending;
+
+          this.setState({
+            pending: pending.splice(pending.indexOf("mbtiles"), 1),
+          });
+        });
+      });
+    }
+
+    // trigger ingestion
+    return this.ingest(source => {
+      const imageryChecker = setInterval(() => {
+        this.checkIngestionStatus(source, status => {
+          console.warn("Ingestion failed:", status);
+          clearInterval(imageryChecker);
+
+          pending = this.state.pending;
+
+          this.setState({
+            pending: pending.splice(pending.indexOf("ingesting"), 1),
+          });
+        }, status => {
+          clearInterval(imageryChecker);
+
+          this.requestMBTiles(`${imageryEndpoint}/imagery/${source.name}`, status => {
+            console.warn("MBTiles generation failed:", status);
+
+            pending = this.state.pending;
+
+            this.setState({
+              pending: pending.splice(pending.indexOf("mbtiles"), 1),
+            });
+          }, status => {
+            console.log("Marking presence of MBTiles");
+
+            this.updateMetadata({
+              mbtiles: `${imageryEndpoint}/imagery/${source.name}/mbtiles`
+            }, rsp => {
+              pending = this.state.pending;
+
+              this.setState({
+                pending: pending.splice(pending.indexOf("mbtiles"), 1),
+              });
+            });
+          });
+
+          // update metadata
+          this.updateMetadata({
+            imagery: `${imageryEndpoint}/imagery/${source.name}`
+          }, rsp => {
+            pending = this.state.pending;
+
+            this.setState({
+              pending: pending.splice(pending.indexOf("ingesting"), 1),
+            });
+          });
+        });
+      }, refreshInterval);
+    });
   }
 
   process(force = false) {
