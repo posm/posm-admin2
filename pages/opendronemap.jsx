@@ -28,7 +28,7 @@ export default class Index extends React.Component {
   constructor(props) {
     super(props);
 
-    this.getProjectInfo = this.getProjectInfo.bind(this);
+    this.getProjects = this.getProjects.bind(this);
     this.saveProject = this.saveProject.bind(this);
     this.updateProjectName = this.updateProjectName.bind(this);
   }
@@ -40,18 +40,37 @@ export default class Index extends React.Component {
   }
 
   componentDidMount() {
-    this.getProjectInfo();
+    this.getProjects();
   }
 
-  getProjectInfo() {
+  getProjects() {
     const { endpoint } = this.props;
+
+    this.setState({
+      loading: true,
+    });
 
     fetch(`${endpoint}/projects`)
       .then(rsp => rsp.json())
       .then(projects => this.setState({
-        projects
+        loading: false,
+        projects,
       }))
       .catch(err => console.warn(err.stack));
+  }
+
+  getRefreshSpinner() {
+    const { loading } = this.state;
+
+    if (loading) {
+      return (
+        <i className="fa fa-refresh fa-spin" />
+      );
+    }
+
+    return (
+      <a onClick={this.getProjects}><i className="fa fa-refresh" /></a>
+    );
   }
 
   saveProject() {
@@ -65,7 +84,7 @@ export default class Index extends React.Component {
           name: projectName,
         }),
         method: "PATCH"
-      }).then(rsp => this.getProjectInfo)
+      }).then(rsp => this.getProjects)
         .catch(err => console.warn(err.stack));
     }
 
@@ -106,10 +125,9 @@ export default class Index extends React.Component {
         />
         <div className="page-title">
           <div className="title_left">
-            <h3>OpenDroneMap <small>Projects</small></h3>
+            <h3>OpenDroneMap <small>Projects {this.getRefreshSpinner()}</small></h3>
           </div>
           <div className="title_right">
-            {/* TODO refresh */}
             <button type="button" className="btn btn-primary btn-sm pull-right" data-toggle="modal" data-target="#newProject">New Project</button>
           </div>
         </div>
@@ -117,7 +135,7 @@ export default class Index extends React.Component {
 
         <Modal
           id="newProject"
-          onHidden={this.getProjectInfo}
+          onHidden={this.getProjects}
         >
           <ModalHeader
             title="New Project"
