@@ -39,6 +39,18 @@ export default class ProjectPane extends React.Component {
     this.monitor();
   }
 
+  componentWillUpdate(nextProps, nextState) {
+    const nextStatus = nextState.project.status;
+    const { status } = this.state.project;
+
+    if (["SUCCESS", "FAILURE"].indexOf(nextStatus.state) >= 0 &&
+        nextStatus.state !== status.state) {
+      this.setState({
+        showSpinner: false,
+      });
+    }
+  }
+
   componentWillUnmount() {
     this.stopMonitoring();
   }
@@ -78,11 +90,11 @@ export default class ProjectPane extends React.Component {
 
   getButtons() {
     const { endpoint } = this.props;
-    const { local, project } = this.state;
+    const { pending, project } = this.state;
     const { status } = project;
 
     if (this.isRunning()) {
-      if (local === "cancelling") {
+      if (pending.indexOf("cancelling") >= 0) {
         return (
           <button type="button" className="btn btn-warning btn-sm">Cancelling <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
@@ -106,26 +118,26 @@ export default class ProjectPane extends React.Component {
 
     case "FAILURE":
     case "REVOKED": {
-      if (local === "processing" && !this.isRunning()) {
+      if (pending.indexOf("processing") >= 0 && !this.isRunning()) {
         return (
-          <button type="button" className="btn btn-primary btn-sm">Re-processing <i className="fa fa-circle-o-notch fa-spin" /></button>
+          <button type="button" className="btn btn-dark btn-sm">Re-processing <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
       }
 
       return (
-        <button type="button" className="btn btn-primary btn-sm" onClick={this.reprocess}>Re-process</button>
+        <button type="button" className="btn btn-dark btn-sm" onClick={this.reprocess}>Re-process</button>
       );
     }
 
     default: {
-      if (local === "processing" && !this.isRunning()) {
+      if (pending.indexOf("processing") >= 0 && !this.isRunning()) {
         return (
-          <button type="button" className="btn btn-primary btn-sm">Processing <i className="fa fa-circle-o-notch fa-spin" /></button>
+          <button type="button" className="btn btn-dark btn-sm">Processing <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
       }
 
       return (
-        <button type="button" className="btn btn-primary btn-sm" onClick={this.process}>Process</button>
+        <button type="button" className="btn btn-dark btn-sm" onClick={this.process}>Process</button>
       );
     }
     }
@@ -161,8 +173,16 @@ export default class ProjectPane extends React.Component {
   }
 
   cancel() {
+    const { pending } = this.state;
+
+    if (pending.indexOf("cancelling") >= 0) {
+      throw new Error("Already cancelling.");
+    }
+
+    pending.push("cancelling");
+
     this.setState({
-      local: "cancelling",
+      pending,
       showSpinner: true,
     });
 
@@ -225,7 +245,7 @@ export default class ProjectPane extends React.Component {
                 pending = this.state.pending;
 
                 this.setState({
-                  pending: pending.splice(pending.indexOf("ingesting")),
+                  pending: pending.splice(pending.indexOf("ingesting"), 1),
                   showSpinner: false,
                 });
 
@@ -249,7 +269,7 @@ export default class ProjectPane extends React.Component {
                     pending = this.state.pending;
 
                     this.setState({
-                      pending: pending.splice(pending.indexOf("ingesting")),
+                      pending: pending.splice(pending.indexOf("ingesting"), 1),
                       showSpinner: false,
                     });
                   })
@@ -280,10 +300,12 @@ export default class ProjectPane extends React.Component {
           return rsp.json();
         })
         .then(project => {
-          if (this.state.local === "cancelling" &&
+          const { pending } = this.state;
+
+          if (pending.indexOf("cancelling") >= 0 &&
               project.status.state === "REVOKED") {
             this.setState({
-              local: null
+              pending: pending.splice(pending.indexOf("cancelling"), 1),
             });
           }
 
@@ -305,6 +327,11 @@ export default class ProjectPane extends React.Component {
     console.log("Requesting MBTiles generation...");
 
     const { endpoint, imageryEndpoint, refreshInterval } = this.props;
+    const { user } = this.state.project;
+
+    if (user.imagery) {
+      // imagery already ingested
+    }
 
     // start spinner
     this.setState({
@@ -418,8 +445,16 @@ export default class ProjectPane extends React.Component {
   }
 
   process(force = false) {
+    let { pending } = this.state;
+
+    if (pending.indexOf("processing") >= 0) {
+      throw new Error("Already processing.");
+    }
+
+    pending.push("processing");
+
     this.setState({
-      local: "processing",
+      pending,
       showSpinner: true,
     });
 
@@ -439,8 +474,10 @@ export default class ProjectPane extends React.Component {
         throw new Error("Failed.");
       }
 
+      pending = this.state.pending;
+
       this.setState({
-        showSpinner: false,
+        pending: pending.splice(pending.indexOf("processing"), 1),
       });
     }).catch(err => {
       console.warn(err.stack);
