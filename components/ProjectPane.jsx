@@ -498,7 +498,9 @@ export default class ProjectPane extends React.Component {
   render() {
     const { name } = this.props;
     const { project } = this.state;
-    const { artifacts, images, status } = project;
+    const { artifacts, images, status, user } = project;
+
+    const projectName = user.name || name;
 
     const buttons = this.getButtons();
     const failure = this.getFailure();
@@ -509,7 +511,7 @@ export default class ProjectPane extends React.Component {
         <div className="x_panel">
           <div className="x_title">
             {/* TODO change to fa-chevron-down when opened; see http://stackoverflow.com/questions/13778703/adding-open-closed-icon-to-twitter-bootstrap-collapsibles-accordions */}
-            <h2><a data-toggle="collapse" href={`#${name}-panel`}><i className="fa fa-chevron-right" /> {name}</a> {failure} {spinner}</h2>
+            <h2><a data-toggle="collapse" href={`#${name}-panel`}><i className="fa fa-chevron-right" /> {projectName}</a> {failure} {spinner}</h2>
 
             <div className="pull-right">
               {buttons}
