@@ -30,37 +30,56 @@ export default class ProjectPane extends React.Component {
   }
 
   state = {
+    pending: [],
     project: this.props.project,
-    remote: this.props.project.status,
+    showSpinner: false,
   }
 
   componentDidMount() {
-    // monitor status
-    this.monitorStatus();
-  }
-
-  componentWillUpdate(nextProps, nextState) {
-    if (nextState.remote.state === "SUCCESS" &&
-        nextState.remote.state !== this.state.remote.state) {
-      const { endpoint } = this.props;
-
-      // refresh project metadata
-      fetch(endpoint)
-        .then(rsp => rsp.json())
-        .then(project => this.setState({
-          project
-        }))
-        .catch(err => console.warn(err.stack));
-    }
+    this.monitor();
   }
 
   componentWillUnmount() {
-    this.stopMonitoringStatus();
+    this.stopMonitoring();
+  }
+
+  getIngestButton() {
+    const { pending, project } = this.state;
+    const { user } = project;
+
+    if (user.imagery == null) {
+      if (pending.indexOf("ingesting") >= 0) {
+        return (
+          <button type="button" className="btn btn-success btn-sm">Ingesting <i className="fa fa-circle-o-notch fa-spin" /></button>
+        );
+      }
+
+      return (
+        <button type="button" className="btn btn-success btn-sm" onClick={this.ingestSource}>Ingest</button>
+      );
+    }
+
+    return null;
+  }
+
+  getMBTilesButton() {
+    const { user } = this.state.project;
+
+    if (user.mbtiles == null) {
+      return (
+        <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
+      );
+    }
+
+    return (
+      <a href={user.mbtiles} role="button" className="btn btn-success btn-sm">Download MBTiles</a>
+    );
   }
 
   getButtons() {
     const { endpoint } = this.props;
-    const { local, remote } = this.state;
+    const { local, project } = this.state;
+    const { status } = project;
 
     if (this.isRunning()) {
       if (local === "cancelling") {
@@ -74,15 +93,13 @@ export default class ProjectPane extends React.Component {
       );
     }
 
-    switch (remote.state) {
+    switch (status.state) {
     case "SUCCESS": {
-      // TODO check state for an existing MBTiles link
-      // TODO check state for an existing imagery link
       return (
         <span>
           <a href={`${endpoint}/artifacts/odm_orthophoto.tif`} role="button" className="btn btn-success btn-sm">Download GeoTIFF</a>
-          <button type="button" className="btn btn-success btn-sm" onClick={this.ingestSource}>Ingest</button>
-          <button type="button" className="btn btn-success btn-sm" onClick={this.makeMBTiles}>Make MBTiles</button>
+          { this.getIngestButton() }
+          { this.getMBTilesButton() }
         </span>
       );
     }
@@ -116,9 +133,9 @@ export default class ProjectPane extends React.Component {
 
   getFailure() {
     const { name } = this.props;
-    const { remote } = this.state;
+    const { status } = this.state.project;
 
-    if (remote.state !== "FAILURE") {
+    if (status.state !== "FAILURE") {
       return null;
     }
 
@@ -128,20 +145,25 @@ export default class ProjectPane extends React.Component {
   }
 
   getSpinner() {
-    if (!this.isRunning()) {
-      return null;
+    if (this.shouldShowSpinner()) {
+      const { name } = this.props;
+
+      return (
+        <a data-toggle="modal" data-target={`.${name}-status-modal`}> <i className="fa fa-circle-o-notch fa-spin blue" /></a>
+      );
     }
 
-    const { name } = this.props;
+    return null;
+  }
 
-    return (
-      <a data-toggle="modal" data-target={`.${name}-status-modal`}> <i className="fa fa-circle-o-notch fa-spin blue" /></a>
-    );
+  shouldShowSpinner() {
+    return this.state.showSpinner;
   }
 
   cancel() {
     this.setState({
-      local: "cancelling"
+      local: "cancelling",
+      showSpinner: true,
     });
 
     const { endpoint } = this.props;
@@ -155,6 +177,10 @@ export default class ProjectPane extends React.Component {
         // TODO display the underlying error message
         throw new Error("Failed.");
       }
+
+      this.setState({
+        showSpinner: false,
+      });
     }).catch(err => {
       console.warn(err.stack);
     });
@@ -164,8 +190,20 @@ export default class ProjectPane extends React.Component {
     console.log("Ingesting source...");
 
     const { endpoint, imageryEndpoint, refreshInterval } = this.props;
+    let { pending } = this.state;
 
-    // TODO start spinner
+    if (pending.indexOf("ingesting") >= 0) {
+      throw new Error("Ingestion already in process.");
+    }
+
+    pending.push("ingesting");
+
+    // start spinner
+    this.setState({
+      pending,
+      showSpinner: true,
+    });
+
     // TODO clean up this mess
 
     // trigger ingestion
@@ -183,6 +221,14 @@ export default class ProjectPane extends React.Component {
               case "REVOKED": {
                 console.warn("Ingestion failed:", status);
                 clearInterval(imageryChecker);
+
+                pending = this.state.pending;
+
+                this.setState({
+                  pending: pending.splice(pending.indexOf("ingesting")),
+                  showSpinner: false,
+                });
+
                 break;
               }
 
@@ -197,7 +243,16 @@ export default class ProjectPane extends React.Component {
                   method: "PATCH"
                 })
                   .then(rsp => rsp.json())
-                  .then(rsp => console.log)
+                  .then(rsp => {
+                    console.log(rsp);
+
+                    pending = this.state.pending;
+
+                    this.setState({
+                      pending: pending.splice(pending.indexOf("ingesting")),
+                      showSpinner: false,
+                    });
+                  })
                   .catch(err => console.warn(err.stack));
 
                 break;
@@ -212,11 +267,11 @@ export default class ProjectPane extends React.Component {
       .catch(err => console.warn(err.stack));
   }
 
-  monitorStatus() {
+  monitor() {
     const { endpoint, refreshInterval } = this.props;
 
-    this.statusChecker = setInterval(() => {
-      fetch(`${endpoint}/status`)
+    this.checker = setInterval(() => {
+      fetch(`${endpoint}`)
         .then(rsp => {
           if (!rsp.ok) {
             console.log("bad response");
@@ -224,16 +279,16 @@ export default class ProjectPane extends React.Component {
 
           return rsp.json();
         })
-        .then(status => {
+        .then(project => {
           if (this.state.local === "cancelling" &&
-              status.state === "REVOKED") {
+              project.status.state === "REVOKED") {
             this.setState({
               local: null
             });
           }
 
           this.setState({
-            remote: status
+            project,
           });
         })
         .catch(err => {
@@ -242,8 +297,8 @@ export default class ProjectPane extends React.Component {
     }, refreshInterval);
   }
 
-  stopMonitoringStatus() {
-    clearInterval(this.statusChecker);
+  stopMonitoring() {
+    clearInterval(this.checker);
   }
 
   makeMBTiles() {
@@ -251,10 +306,14 @@ export default class ProjectPane extends React.Component {
 
     const { endpoint, imageryEndpoint, refreshInterval } = this.props;
 
-    // TODO start spinner
+    // start spinner
+    this.setState({
+      showSpinner: true,
+    });
+
     // TODO clean up this mess
 
-    // trigger ingestion
+    // trigger ingestion (only if necessary)
     fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/artifacts/odm_orthophoto.tif`)}`, {
       method: "POST"
     })
@@ -269,6 +328,11 @@ export default class ProjectPane extends React.Component {
               case "REVOKED": {
                 console.warn("Ingestion failed:", status);
                 clearInterval(imageryChecker);
+
+                this.setState({
+                  showSpinner: false,
+                });
+
                 break;
               }
 
@@ -300,12 +364,18 @@ export default class ProjectPane extends React.Component {
                           case "REVOKED": {
                             console.warn("MBTiles generation failed:", status);
                             clearInterval(mbtilesChecker);
+
+                            this.setState({
+                              showSpinner: false,
+                            });
+
                             break;
                           }
 
                           case "SUCCESS": {
                             clearInterval(mbtilesChecker);
 
+                            console.log("Marking presence of MBTiles");
                             // update metadata
                             fetch(endpoint, {
                               body: JSON.stringify({
@@ -314,8 +384,14 @@ export default class ProjectPane extends React.Component {
                               method: "PATCH"
                             })
                               .then(rsp => rsp.json())
-                              // TODO stop spinner, display MBTiles download link
                               .then(rsp => console.log)
+                              .then(rsp => {
+                                console.log(rsp);
+
+                                this.setState({
+                                  showSpinner: false,
+                                });
+                              })
                               .catch(err => console.warn(err.stack));
 
                             break;
@@ -343,7 +419,8 @@ export default class ProjectPane extends React.Component {
 
   process(force = false) {
     this.setState({
-      local: "processing"
+      local: "processing",
+      showSpinner: true,
     });
 
     const { endpoint } = this.props;
@@ -361,6 +438,10 @@ export default class ProjectPane extends React.Component {
         // TODO display the underlying error message
         throw new Error("Failed.");
       }
+
+      this.setState({
+        showSpinner: false,
+      });
     }).catch(err => {
       console.warn(err.stack);
     });
@@ -371,15 +452,15 @@ export default class ProjectPane extends React.Component {
   }
 
   isRunning() {
-    const { remote } = this.state;
+    const { status } = this.state.project;
 
-    return ["PENDING", "RUNNING"].indexOf(remote.state) >= 0;
+    return ["PENDING", "RUNNING"].indexOf(status.state) >= 0;
   }
 
   render() {
     const { name } = this.props;
-    const { project, remote } = this.state;
-    const { artifacts, images } = project;
+    const { project } = this.state;
+    const { artifacts, images, status } = project;
 
     const buttons = this.getButtons();
     const failure = this.getFailure();
@@ -409,7 +490,6 @@ export default class ProjectPane extends React.Component {
                   <pre
                     dangerouslySetInnerHTML={{ __html: highlight(JSON.stringify({
                       project,
-                      remote
                     }, null, 2), "json") }}
                   />
                 </div>
@@ -420,10 +500,10 @@ export default class ProjectPane extends React.Component {
           <div className="x_content panel-collapse collapse" id={`${name}-panel`}>
             <div role="tabpanel">
               <ul id="images" className="nav nav-tabs bar_tabs" role="tablist">
-                <li role="presentation" className={remote.state == null ? "active" : null}>
+                <li role="presentation" className={status.state == null ? "active" : null}>
                   <a href={`#${name}_images`} id={`${name}-images-tab`} role="tab" data-toggle="tab" aria-expanded="true">Sources</a>
                 </li>
-                <li role="presentation" className={remote.state ? "active" : null}>
+                <li role="presentation" className={status.state ? "active" : null}>
                   <a href={`#${name}_artifacts`} id={`${name}-artifacts-tab`} role="tab" data-toggle="tab" aria-expanded="false">Output</a>
                 </li>
               </ul>
@@ -431,14 +511,14 @@ export default class ProjectPane extends React.Component {
               <div className="tab-content">
                 <ProjectOutputPanel
                   {...this.props}
-                  active={remote.state != null}
+                  active={status.state != null}
                   artifacts={artifacts}
                   project={project}
                 />
 
                 <ProjectSourcesPanel
                   {...this.props}
-                  active={remote.state == null}
+                  active={status.state == null}
                   sources={images}
                   project={project}
                 />
