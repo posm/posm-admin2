@@ -2009,6 +2009,10 @@ download@^4.0.0, download@^4.1.2:
     vinyl-fs "^2.2.0"
     ware "^1.2.0"
 
+dropzone, dropzone@^4.3.0:
+  version "4.3.0"
+  resolved "https://registry.yarnpkg.com/dropzone/-/dropzone-4.3.0.tgz#48b0b8f2ad092872e4b535b672a7c3f1a1d67c91"
+
 duplexer2@^0.1.4, duplexer2@~0.1.0:
   version "0.1.4"
   resolved "https://registry.yarnpkg.com/duplexer2/-/duplexer2-0.1.4.tgz#8b12dab878c0d69e3e7891051662a32fc6bddcc1"
@@ -5752,6 +5756,12 @@ react-dom, "react-dom@^0.14.0 || ^15.0.0", react-dom@^15.3.0:
   version "15.3.2"
   resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-15.3.2.tgz#c46b0aa5380d7b838e7a59c4a7beff2ed315531f"
 
+react-dropzone-component:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/react-dropzone-component/-/react-dropzone-component-1.2.0.tgz#271947635aaabfcd8322a4c203d4c7fc21707406"
+  dependencies:
+    dropzone "^4.3.0"
+
 react-headroom@^2.1.2:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/react-headroom/-/react-headroom-2.1.2.tgz#bc8608130aa3f27c67cc37a3dc23aaf1e06860fa"
@@ -6902,7 +6912,7 @@ util@~0.10.3, util@0.10.3:
   dependencies:
     inherits "2.0.1"
 
-uuid@^2.0.1:
+uuid, uuid@^2.0.1:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-2.0.3.tgz#67e2e863797215530dff318e5bf9dcebfd47b21a"
 

@@ -89,6 +89,7 @@ export default class ProjectPane extends React.Component {
   }
 
   getButtons() {
+    // TODO delete
     const { endpoint } = this.props;
     const { pending, project } = this.state;
     const { status } = project;

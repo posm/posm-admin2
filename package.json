@@ -6,6 +6,7 @@
   "dependencies": {
     "bootstrap-progressbar": "^0.9.0",
     "bootstrap-sass": "^3.3.7",
+    "dropzone": "^4.3.0",
     "fastclick": "^1.0.6",
     "font-awesome": "^4.6.3",
     "front-matter": "^2.0.7",
@@ -26,11 +27,13 @@
     "pretty-bytes": "^4.0.2",
     "react": "^15.3.2",
     "react-dom": "^15.3.2",
+    "react-dropzone-component": "^1.2.0",
     "react-headroom": "^2.1.2",
     "react-helmet": "^3.1.0",
     "react-responsive-grid": "^0.3.3",
     "react-router": "^2.8.1",
     "toml": "^2.3.0",
+    "uuid": "^2.0.3",
     "whatwg-fetch": "^1.0.0"
   },
   "devDependencies": {

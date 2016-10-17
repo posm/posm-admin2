@@ -25,9 +25,9 @@ export default class Index extends React.Component {
 
     const imagery = Object.keys(sources)
       .filter(name => sources[name] !== {})
-      .map((name, idx) => (
+      .map(name => (
         <ImageryPane
-          key={idx}
+          key={name}
           name={name}
           source={sources[name]}
           endpoint={`${config.imageryEndpoint}/imagery/${name}`}

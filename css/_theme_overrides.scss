@@ -15,3 +15,11 @@ img {
 .site_title {
   height: initial;
 }
+
+.nav-md .container.body .col-md-3.left_col {
+  z-index: 0;
+}
+
+.modal-footer .btn + .btn {
+  margin-bottom: 5px;
+}
