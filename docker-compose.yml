@@ -1,0 +1,51 @@
+version: '2'
+services:
+  imagery_web:
+    image: mojodna/posm-imagery-api
+    environment:
+      - REDIS_URL=redis://redis/
+    ports:
+      - "10000:8000"
+    volumes:
+      - /opt/data/imagery:/app/imagery
+      - /opt/data/uploads:/app/uploads
+    depends_on:
+      - redis
+  imagery_worker:
+    image: mojodna/posm-imagery-api
+    entrypoint: celery
+    command: worker -A app.celery --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis/
+      - SERVER_NAME=imagery_web:8000
+    volumes:
+      - /opt/data/imagery:/app/imagery
+      - /opt/data/uploads:/app/uploads
+    depends_on:
+      - redis
+      - imagery_web
+  odm_web:
+    image: mojodna/posm-opendronemap-api
+    environment:
+      - REDIS_URL=redis://redis/
+    ports:
+      - "10001:8000"
+    volumes:
+      - /opt/data/opendronemap:/app/projects
+      - /opt/data/uploads:/app/uploads
+    depends_on:
+      - redis
+  odm_worker:
+    image: mojodna/posm-opendronemap-api
+    entrypoint: celery
+    command: worker -A app.celery --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis/
+    volumes:
+      - /opt/data/opendronemap:/app/projects
+      - /opt/data/uploads:/app/uploads
+    depends_on:
+      - redis
+      - odm_web
+  redis:
+    image: redis
