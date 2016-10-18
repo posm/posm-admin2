@@ -25,7 +25,7 @@ export default class ImageryPane extends React.Component {
 
   state = {
     pending: [],
-    showSpinner: false,
+    showSpinner: ["PENDING", "RUNNING"].indexOf(this.props.source.meta.status.ingest.state) >= 0,
     source: this.props.source,
   }
 
@@ -39,11 +39,20 @@ export default class ImageryPane extends React.Component {
   }
 
   componentWillUpdate(nextProps, nextState) {
-    const nextStatus = nextState.source.meta.status.mbtiles;
-    const status = this.state.source.meta.status.mbtiles;
+    const nextIngestionStatus = nextState.source.meta.status.ingest;
+    const ingestionStatus = this.state.source.meta.status.ingest;
+    const nextTilingStatus = nextState.source.meta.status.mbtiles;
+    const tilingStatus = this.state.source.meta.status.mbtiles;
 
-    if (["SUCCESS", "FAILURE"].indexOf(nextStatus.state) >= 0 &&
-        nextStatus.state !== status.state) {
+    if (["SUCCESS", "FAILURE"].indexOf(nextIngestionStatus.state) >= 0 &&
+        nextIngestionStatus.state !== ingestionStatus.state) {
+      this.setState({
+        showSpinner: false,
+      });
+    }
+
+    if (["SUCCESS", "FAILURE"].indexOf(nextTilingStatus.state) >= 0 &&
+        nextTilingStatus.state !== tilingStatus.state) {
       this.setState({
         showSpinner: false,
       });
@@ -66,7 +75,13 @@ export default class ImageryPane extends React.Component {
     const { pending, source } = this.state;
     const { status } = source.meta;
 
-    if (this.isRunning()) {
+    if (this.isIngesting()) {
+      return (
+        <button type="button" className="btn btn-dark btn-sm">Ingesting <i className="fa fa-circle-o-notch fa-spin" /></button>
+      );
+    }
+
+    if (this.isTiling()) {
       if (pending.indexOf("cancelling") >= 0) {
         return (
           <button type="button" className="btn btn-warning btn-sm">Cancelling <i className="fa fa-circle-o-notch fa-spin" /></button>
@@ -115,6 +130,31 @@ export default class ImageryPane extends React.Component {
 
     return (
       <a data-toggle="modal" data-target={`.${name}-status-modal`}> <i className="fa fa-exclamation-triangle red" /></a>
+    );
+  }
+
+  getMap() {
+    if (!this.isReady()) {
+      return null;
+    }
+
+    const { source } = this.state;
+    const { maxzoom, minzoom, name } = source;
+
+    const bounds = [source.bounds.slice(0, 2).reverse(), source.bounds.slice(2, 4).reverse()];
+    const url = source.tiles[0];
+    // TODO display URL template / TileJSON URL
+    // TODO make GDAL XML available for download
+    // TODO default to closed and trigger leaflet.invalidateSize when opened
+    return (
+      <div className="x_content panel-collapse collapse in" id={`${name}-panel`}>
+        <Map
+          bounds={bounds}
+          maxzoom={maxzoom}
+          minzoom={minzoom}
+          url={url}
+        />
+      </div>
     );
   }
 
@@ -225,24 +265,37 @@ export default class ImageryPane extends React.Component {
     });
   }
 
-  isRunning() {
-    const { ingest, mbtiles } = this.state.source.meta.status;
+  isReady() {
+    const { ingest } = this.state.source.meta.status;
 
-    return ["PENDING", "RUNNING"].indexOf(ingest.state) >= 0 ||
-           ["PENDING", "RUNNING"].indexOf(mbtiles.state) >= 0;
+    return ingest.state === "SUCCESS";
+  }
+
+  isIngesting() {
+    const { ingest } = this.state.source.meta.status;
+
+    return ["PENDING", "RUNNING"].indexOf(ingest.state) >= 0;
+  }
+
+  isTiling() {
+    const { mbtiles } = this.state.source.meta.status;
+
+    return ["PENDING", "RUNNING"].indexOf(mbtiles.state) >= 0;
+  }
+
+  isRunning() {
+    return this.isIngesting() || this.isTiling();
   }
 
   render() {
     const { source } = this.state;
-    const { maxzoom, minzoom, name } = source;
-
-    const bounds = [source.bounds.slice(0, 2).reverse(), source.bounds.slice(2, 4).reverse()];
-    const url = source.tiles[0];
+    const { name } = source;
 
     // TODO delete button
     const buttons = this.getButtons();
     const failure = this.getFailure();
     const spinner = this.getSpinner();
+    const map = this.getMap();
 
     return (
       <div className="row">
@@ -275,17 +328,7 @@ export default class ImageryPane extends React.Component {
             </div>
           </div>
 
-          {/* TODO display URL template / TileJSON URL */}
-          {/* TODO make GDAL XML available for download */}
-          {/* TODO default to closed and trigger leaflet.invalidateSize when opened */}
-          <div className="x_content panel-collapse collapse in" id={`${name}-panel`}>
-            <Map
-              bounds={bounds}
-              maxzoom={maxzoom}
-              minzoom={minzoom}
-              url={url}
-            />
-          </div>
+          {map}
         </div>
       </div>
     );
