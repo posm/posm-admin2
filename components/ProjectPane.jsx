@@ -44,10 +44,17 @@ export default class ProjectPane extends React.Component {
     const nextStatus = nextState.project.status;
     const { status } = this.state.project;
 
-    if (["SUCCESS", "FAILURE"].indexOf(nextStatus.state) >= 0 &&
+    if (["SUCCESS", "FAILURE", "REVOKED"].indexOf(nextStatus.state) >= 0 &&
         nextStatus.state !== status.state) {
       this.setState({
         showSpinner: false,
+      });
+    }
+
+    // clear pending states; we're all caught up
+    if (nextState.project !== this.state.project) {
+      this.setState({
+        pending: [],
       });
     }
   }
@@ -202,7 +209,7 @@ export default class ProjectPane extends React.Component {
 
   cancel() {
     const { endpoint } = this.props;
-    let { pending } = this.state;
+    const { pending } = this.state;
 
     if (pending.indexOf("cancelling") >= 0) {
       throw new Error("Already cancelling.");
@@ -218,20 +225,10 @@ export default class ProjectPane extends React.Component {
     fetch(`${endpoint}/process`, {
       method: "DELETE",
     }).then(rsp => {
-      console.log("rsp:", rsp);
-
       if (rsp.status >= 400) {
         // TODO display the underlying error message
         throw new Error("Failed.");
       }
-
-      pending = this.state.pending;
-      pending.splice(pending.indexOf("cancelling"), 1);
-
-      this.setState({
-        pending,
-        showSpinner: false,
-      });
     }).catch(err => {
       console.warn(err.stack);
     });
@@ -550,7 +547,7 @@ export default class ProjectPane extends React.Component {
   }
 
   process(force = false) {
-    let { pending } = this.state;
+    const { pending } = this.state;
 
     if (pending.indexOf("processing") >= 0) {
       throw new Error("Already processing.");
@@ -578,13 +575,6 @@ export default class ProjectPane extends React.Component {
         // TODO display the underlying error message
         throw new Error("Failed.");
       }
-
-      pending = this.state.pending;
-      pending.splice(pending.indexOf("processing"), 1);
-
-      this.setState({
-        pending,
-      });
     }).catch(err => {
       console.warn(err.stack);
     });
