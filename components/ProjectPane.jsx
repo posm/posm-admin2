@@ -33,6 +33,7 @@ export default class ProjectPane extends React.Component {
   state = {
     pending: [],
     project: this.props.project,
+    projectName: this.props.project.user.name || this.props.name,
     showSpinner: false,
   }
 
@@ -399,11 +400,27 @@ export default class ProjectPane extends React.Component {
 
   ingest(callback) {
     const { endpoint, imageryEndpoint } = this.props;
+    const { project, projectName } = this.state;
 
     fetch(`${imageryEndpoint}/imagery/ingest?url=${encodeURIComponent(`${endpoint}/artifacts/odm_orthophoto.tif`)}`, {
       method: "POST"
     }).then(rsp => rsp.json())
-      .then(callback)
+      .then(rsp => {
+        fetch(rsp.source)
+          .then(rsp => rsp.json())
+          .then(callback)
+          .catch(err => console.warn(err.stack));
+
+        if (project.name !== projectName) {
+          // update imagery metadata
+          fetch(rsp.source, {
+            body: JSON.stringify({
+              name: projectName,
+            }),
+            method: "PATCH"
+          }).catch(err => console.warn(err.stack));
+        }
+      })
       .catch(err => console.warn(err.stack));
   }
 
@@ -592,10 +609,8 @@ export default class ProjectPane extends React.Component {
 
   render() {
     const { name } = this.props;
-    const { project } = this.state;
+    const { project, projectName } = this.state;
     const { artifacts, images, status, user } = project;
-
-    const projectName = user.name || name;
 
     const buttons = this.getButtons();
     const deleteButton = this.getDeleteButton();
