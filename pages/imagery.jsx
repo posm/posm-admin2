@@ -22,9 +22,12 @@ export default class Index extends React.Component {
     super(props);
 
     this.getSources = this.getSources.bind(this);
+    this.saveSource = this.saveSource.bind(this);
+    this.updateName = this.updateName.bind(this);
   }
 
   state = {
+    name: "",
     sources: {},
   }
 
@@ -45,9 +48,38 @@ export default class Index extends React.Component {
       .catch(err => console.warn(err.stack));
   }
 
+  saveSource(url) {
+    const { name } = this.state;
+
+    // reset name
+    this.setState({
+      name: "",
+    });
+
+    if (name !== "") {
+      // update metadata
+      fetch(url, {
+        body: JSON.stringify({
+          name,
+        }),
+        method: "PATCH"
+      }).then(this.getSources)
+        .catch(err => console.warn(err.stack));
+    } else {
+      this.getSources();
+    }
+  }
+
+  updateName(event) {
+    this.setState({
+      name: event.target.value,
+    });
+  }
+
   render() {
     const { endpoint } = this.props;
     const { sources } = this.state;
+    const sourceName = this.state.name;
 
     const imagery = Object.keys(sources)
       .filter(name => sources[name] !== {})
@@ -82,28 +114,34 @@ export default class Index extends React.Component {
             </div>
 
             <div className="x_content">
-              <Dropzone
-                config={{
-                  postUrl: "no-url",
-                }}
-                eventHandlers={{
-                  init: dropzone => {
-                    this.dropzone = dropzone;
-                  },
-                  complete: file => {
-                    this.getSources();
-                    this.dropzone.removeFile(file);
-                  },
-                  processing: () => {
-                    this.dropzone.options.url = `${endpoint}/imagery/upload`;
-                  },
-                }}
-                djsConfig={{
-                  acceptedFiles: "image/tiff",
-                  addRemoveLinks: false,
-                  method: "PUT",
-                }}
-              />
+              <form className="form-horizontal form-label-left">
+                <div className="form-group">
+                  <input type="text" className="form-control" placeholder="Source Name" value={sourceName} onChange={this.updateName} />
+                </div>
+                <Dropzone
+                  config={{
+                    postUrl: "no-url",
+                  }}
+                  eventHandlers={{
+                    init: dropzone => {
+                      this.dropzone = dropzone;
+                    },
+                    success: (file, rsp) => {
+                      this.saveSource(rsp.source);
+
+                      this.dropzone.removeFile(file);
+                    },
+                    processing: () => {
+                      this.dropzone.options.url = `${endpoint}/imagery/upload`;
+                    },
+                  }}
+                  djsConfig={{
+                    acceptedFiles: "image/tiff",
+                    addRemoveLinks: false,
+                    method: "PUT",
+                  }}
+                />
+              </form>
             </div>
           </div>
         </div>
