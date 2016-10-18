@@ -31,10 +31,12 @@ export default class ProjectPane extends React.Component {
   }
 
   state = {
+    ingesting: false,
     pending: [],
     project: this.props.project,
     projectName: this.props.project.user.name || this.props.name,
     showSpinner: false,
+    tiling: false,
   }
 
   componentDidMount() {
@@ -79,16 +81,16 @@ export default class ProjectPane extends React.Component {
   }
 
   getIngestButton() {
-    const { pending, project } = this.state;
+    const { ingesting, pending, project } = this.state;
     const { user } = project;
 
-    if (user.imagery == null && pending.indexOf("mbtiles") < 0) {
-      if (pending.indexOf("ingesting") >= 0) {
-        return (
-          <button type="button" className="btn btn-warning btn-sm">Ingesting <i className="fa fa-circle-o-notch fa-spin" /></button>
-        );
-      }
+    if (ingesting || pending.indexOf("ingesting") >= 0) {
+      return (
+        <button type="button" className="btn btn-warning btn-sm">Ingesting <i className="fa fa-circle-o-notch fa-spin" /></button>
+      );
+    }
 
+    if (user.imagery == null && pending.indexOf("mbtiles") < 0) {
       return (
         <button type="button" className="btn btn-dark btn-sm" onClick={this.ingestSource}>Ingest</button>
       );
@@ -99,15 +101,15 @@ export default class ProjectPane extends React.Component {
 
   getMBTilesButton() {
     const { user } = this.state.project;
-    const { pending } = this.state;
+    const { pending, tiling } = this.state;
+
+    if (tiling || pending.indexOf("mbtiles") >= 0) {
+      return (
+        <button type="button" className="btn btn-warning btn-sm">Making MBTiles <i className="fa fa-circle-o-notch fa-spin" /></button>
+      );
+    }
 
     if (user.mbtiles == null) {
-      if (pending.indexOf("mbtiles") >= 0) {
-        return (
-          <button type="button" className="btn btn-warning btn-sm">Making MBTiles <i className="fa fa-circle-o-notch fa-spin" /></button>
-        );
-      }
-
       if (pending.indexOf("ingesting") >= 0) {
         return (
           <button type="button" className="btn btn-dark btn-sm">Make MBTiles</button>
@@ -271,21 +273,28 @@ export default class ProjectPane extends React.Component {
     });
   }
 
-  checkIngestionStatus(source, failureCallback, successCallback) {
-    const { imageryEndpoint } = this.props;
-
-    fetch(`${imageryEndpoint}/imagery/${source.name}/ingest/status`)
+  checkIngestionStatus(sourceUrl, failureCallback, successCallback) {
+    fetch(`${sourceUrl}/ingest/status`)
       .then(rsp => rsp.json())
       .then(status => {
+        console.log("Ingestion status:", status);
         switch (status.state) {
         case "FAILURE":
         case "REVOKED": {
+          this.setState({
+            ingesting: false,
+          });
+
           failureCallback(status);
 
           break;
         }
 
         case "SUCCESS": {
+          this.setState({
+            ingesting: false,
+          });
+
           successCallback(status);
 
           break;
@@ -297,24 +306,23 @@ export default class ProjectPane extends React.Component {
       .catch(err => console.warn(err.stack));
   }
 
-  updateMetadata(body, successCallback) {
+  updateMetadata(body) {
     const { endpoint } = this.props;
+
+    console.log("Updating metadata with", body);
 
     // update metadata
     fetch(endpoint, {
       body: JSON.stringify(body),
       method: "PATCH"
-    })
-      .then(rsp => rsp.json())
-      .then(rsp => successCallback)
-      .catch(err => console.warn(err.stack));
+    }).catch(err => console.warn(err.stack));
   }
 
   ingestSource() {
     console.log("Ingesting source...");
 
-    const { imageryEndpoint, refreshInterval } = this.props;
-    let { pending } = this.state;
+    const { refreshInterval } = this.props;
+    const { pending } = this.state;
 
     if (pending.indexOf("ingesting") >= 0) {
       throw new Error("Ingestion already in process.");
@@ -328,33 +336,24 @@ export default class ProjectPane extends React.Component {
     });
 
     // trigger ingestion
-    this.ingest(source => {
+    this.ingest(sourceUrl => {
+      this.setState({
+        ingesting: true,
+      });
+
+      // update metadata
+      this.updateMetadata({
+        imagery: sourceUrl,
+      });
+
       // TODO move interval into ingest()
       const imageryChecker = setInterval(() => {
-        this.checkIngestionStatus(source, status => {
+        this.checkIngestionStatus(sourceUrl, status => {
           console.warn("Ingestion failed:", status);
           clearInterval(imageryChecker);
-
-          pending = this.state.pending;
-          pending.splice(pending.indexOf("ingesting"), 1);
-
-          this.setState({
-            pending,
-          });
         }, status => {
+          console.log("Ingestion complete:", status);
           clearInterval(imageryChecker);
-
-          // update metadata
-          this.updateMetadata({
-            imagery: `${imageryEndpoint}/imagery/${source.name}`
-          }, rsp => {
-            pending = this.state.pending;
-            pending.splice(pending.indexOf("ingesting"), 1);
-
-            this.setState({
-              pending,
-            });
-          });
         });
       }, refreshInterval);
     });
@@ -406,10 +405,7 @@ export default class ProjectPane extends React.Component {
       method: "POST"
     }).then(rsp => rsp.json())
       .then(rsp => {
-        fetch(rsp.source)
-          .then(rsp => rsp.json())
-          .then(callback)
-          .catch(err => console.warn(err.stack));
+        callback(rsp.source);
 
         if (project.name !== projectName) {
           // update imagery metadata
@@ -424,8 +420,12 @@ export default class ProjectPane extends React.Component {
       .catch(err => console.warn(err.stack));
   }
 
-  requestMBTiles(endpoint, failureCallback, successCallback) {
+  requestMBTiles(endpoint, failureCallback) {
     const { refreshInterval } = this.props;
+
+    this.setState({
+      tiling: true,
+    });
 
     fetch(`${endpoint}/mbtiles`, {
       method: "POST"
@@ -438,6 +438,10 @@ export default class ProjectPane extends React.Component {
               switch (status.state) {
               case "FAILURE":
               case "REVOKED": {
+                this.setState({
+                  tiling: false,
+                });
+
                 clearInterval(mbtilesChecker);
 
                 failureCallback(status);
@@ -446,9 +450,11 @@ export default class ProjectPane extends React.Component {
               }
 
               case "SUCCESS": {
-                clearInterval(mbtilesChecker);
+                this.setState({
+                  tiling: false,
+                });
 
-                successCallback(status);
+                clearInterval(mbtilesChecker);
 
                 break;
               }
@@ -465,14 +471,34 @@ export default class ProjectPane extends React.Component {
   makeMBTiles() {
     console.log("Requesting MBTiles generation...");
 
-    const { imageryEndpoint, refreshInterval } = this.props;
-    let { pending } = this.state;
+    const { refreshInterval } = this.props;
+    const { pending } = this.state;
     const { user } = this.state.project;
 
     if (pending.indexOf("mbtiles") >= 0) {
       throw new Error("MBTiles generation already in process.");
     }
 
+    if (user.imagery) {
+      // imagery already ingested
+      pending.push("mbtiles");
+
+      // start spinner
+      this.setState({
+        pending,
+      });
+
+      // TODO do this after we know that the archive was successfully made
+      this.updateMetadata({
+        mbtiles: `${user.imagery}/mbtiles`
+      });
+
+      return this.requestMBTiles(user.imagery, status => {
+        console.warn("MBTiles generation failed:", status);
+      });
+    }
+
+    pending.push("ingesting");
     pending.push("mbtiles");
 
     // start spinner
@@ -480,83 +506,23 @@ export default class ProjectPane extends React.Component {
       pending,
     });
 
-    if (user.imagery) {
-      // imagery already ingested
-      return this.requestMBTiles(user.imagery, status => {
-        console.warn("MBTiles generation failed:", status);
-
-        pending = this.state.pending;
-        pending.splice(pending.indexOf("mbtiles"), 1);
-
-        this.setState({
-          pending,
-        });
-      }, status => {
-        console.log("Marking presence of MBTiles");
-
-        this.updateMetadata({
-          mbtiles: `${user.imagery}/mbtiles`
-        }, rsp => {
-          pending = this.state.pending;
-          pending.splice(pending.indexOf("mbtiles"), 1);
-
-          this.setState({
-            pending,
-          });
-        });
-      });
-    }
-
     // trigger ingestion
-    return this.ingest(source => {
+    return this.ingest(sourceUrl => {
       const imageryChecker = setInterval(() => {
-        this.checkIngestionStatus(source, status => {
+        this.checkIngestionStatus(sourceUrl, status => {
           console.warn("Ingestion failed:", status);
           clearInterval(imageryChecker);
-
-          pending = this.state.pending;
-          pending.splice(pending.indexOf("ingesting"), 1);
-
-          this.setState({
-            pending,
-          });
         }, status => {
+          this.updateMetadata({
+            imagery: sourceUrl,
+            // TODO update mbtiles after we know that the archive was successfully made
+            mbtiles: `${sourceUrl}/mbtiles`
+          });
+
           clearInterval(imageryChecker);
 
-          this.requestMBTiles(`${imageryEndpoint}/imagery/${source.name}`, status => {
+          this.requestMBTiles(sourceUrl, status => {
             console.warn("MBTiles generation failed:", status);
-
-            pending = this.state.pending;
-            pending.splice(pending.indexOf("mbtiles"), 1);
-
-            this.setState({
-              pending,
-            });
-          }, status => {
-            console.log("Marking presence of MBTiles");
-
-            this.updateMetadata({
-              mbtiles: `${imageryEndpoint}/imagery/${source.name}/mbtiles`
-            }, rsp => {
-              pending = this.state.pending;
-              pending.splice(pending.indexOf("mbtiles"), 1);
-
-              this.setState({
-                pending,
-              });
-            });
-          });
-
-          // update metadata
-          this.updateMetadata({
-            imagery: `${imageryEndpoint}/imagery/${source.name}`
-          }, rsp => {
-            pending = this.state.pending;
-            pending.splice(pending.indexOf("ingesting"), 1);
-
-            this.setState({
-              pending,
-            });
           });
         });
       }, refreshInterval);
@@ -610,7 +576,7 @@ export default class ProjectPane extends React.Component {
   render() {
     const { name } = this.props;
     const { project, projectName } = this.state;
-    const { artifacts, images, status, user } = project;
+    const { artifacts, images, status } = project;
 
     const buttons = this.getButtons();
     const deleteButton = this.getDeleteButton();
