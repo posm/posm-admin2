@@ -239,6 +239,7 @@ export default class ImageryPane extends React.Component {
     const bounds = [source.bounds.slice(0, 2).reverse(), source.bounds.slice(2, 4).reverse()];
     const url = source.tiles[0];
 
+    // TODO delete button
     const buttons = this.getButtons();
     const failure = this.getFailure();
     const spinner = this.getSpinner();

@@ -42,6 +42,7 @@ export default class Index extends React.Component {
         />
         <div className="page-title">
           <div className="title_left">
+            {/* TODO refresh */}
             <h3>Imagery <small>Sources</small></h3>
           </div>
           <div className="title_right">
