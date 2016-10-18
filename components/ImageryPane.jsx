@@ -24,13 +24,13 @@ export default class ImageryPane extends React.Component {
   }
 
   state = {
-    pending: null,
+    pending: [],
+    showSpinner: false,
     source: this.props.source,
   }
 
   componentDidMount() {
-    // monitor status
-    this.monitorStatus();
+    this.monitor();
   }
 
   shouldComponentUpdate(nextProps, nextState) {
@@ -38,8 +38,27 @@ export default class ImageryPane extends React.Component {
     return true;
   }
 
+  componentWillUpdate(nextProps, nextState) {
+    const nextStatus = nextState.source.meta.status.mbtiles;
+    const status = this.state.source.meta.status.mbtiles;
+
+    if (["SUCCESS", "FAILURE"].indexOf(nextStatus.state) >= 0 &&
+        nextStatus.state !== status.state) {
+      this.setState({
+        showSpinner: false,
+      });
+    }
+
+    // clear pending states; we're all caught up
+    if (nextState.source !== this.state.source) {
+      this.setState({
+        pending: [],
+      });
+    }
+  }
+
   componentWillUnmount() {
-    this.stopMonitoringStatus();
+    this.stopMonitoring();
   }
 
   getButtons() {
@@ -48,7 +67,7 @@ export default class ImageryPane extends React.Component {
     const { status } = source.meta;
 
     if (this.isRunning()) {
-      if (pending === "cancelling") {
+      if (pending.indexOf("cancelling") >= 0) {
         return (
           <button type="button" className="btn btn-warning btn-sm">Cancelling <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
@@ -61,7 +80,7 @@ export default class ImageryPane extends React.Component {
 
     switch (status.ingest.state) {
     case "SUCCESS": {
-      if (pending === "processing") {
+      if (pending.indexOf("processing") >= 0) {
         return (
           <button type="button" className="btn btn-primary btn-sm">Processing <i className="fa fa-circle-o-notch fa-spin" /></button>
         );
@@ -100,20 +119,32 @@ export default class ImageryPane extends React.Component {
   }
 
   getSpinner() {
-    if (!this.isRunning()) {
-      return null;
+    if (this.shouldShowSpinner()) {
+      const { name } = this.state.source;
+
+      return (
+        <a data-toggle="modal" data-target={`.${name}-status-modal`}> <i className="fa fa-circle-o-notch fa-spin blue" /></a>
+      );
     }
 
-    const { name } = this.state.source;
+    return null;
+  }
 
-    return (
-      <a data-toggle="modal" data-target={`.${name}-status-modal`}> <i className="fa fa-circle-o-notch fa-spin blue" /></a>
-    );
+  shouldShowSpinner() {
+    return this.state.showSpinner;
   }
 
   cancel() {
+    let { pending } = this.state;
+
+    if (pending.indexOf("cancelling") >= 0) {
+      throw new Error("Already cancelling.");
+    }
+
+    pending.push("cancelling");
+
     this.setState({
-      pending: "cancelling"
+      pending,
     });
 
     const { endpoint } = this.props;
@@ -122,6 +153,13 @@ export default class ImageryPane extends React.Component {
       method: "DELETE",
     }).then(rsp => {
       console.log("rsp:", rsp);
+
+      pending = this.state.pending;
+      pending.splice(pending.indexOf("cancelling"), 1);
+
+      this.setState({
+        pending,
+      });
 
       if (rsp.status >= 400) {
         // TODO display the underlying error message
@@ -132,7 +170,7 @@ export default class ImageryPane extends React.Component {
     });
   }
 
-  monitorStatus() {
+  monitor() {
     const { endpoint, refreshInterval } = this.props;
 
     this.statusChecker = setInterval(() => {
@@ -146,10 +184,6 @@ export default class ImageryPane extends React.Component {
         })
         .then(source => {
           this.setState({
-            pending: null
-          });
-
-          this.setState({
             source,
           });
         })
@@ -159,13 +193,22 @@ export default class ImageryPane extends React.Component {
     }, refreshInterval);
   }
 
-  stopMonitoringStatus() {
+  stopMonitoring() {
     clearInterval(this.statusChecker);
   }
 
   makeMBTiles() {
+    const { pending } = this.state;
+
+    if (pending.indexOf("processing") >= 0) {
+      throw new Error("Already processing.");
+    }
+
+    pending.push("processing");
+
     this.setState({
-      pending: "processing"
+      pending,
+      showSpinner: true,
     });
 
     const { endpoint } = this.props;
@@ -173,7 +216,6 @@ export default class ImageryPane extends React.Component {
     fetch(`${endpoint}/mbtiles`, {
       method: "POST",
     }).then(rsp => {
-      console.log("rsp:", rsp);
       if (rsp.status >= 400) {
         // TODO display the underlying error message
         throw new Error("Failed.");
@@ -184,9 +226,10 @@ export default class ImageryPane extends React.Component {
   }
 
   isRunning() {
-    const { source } = this.state;
+    const { ingest, mbtiles } = this.state.source.meta.status;
 
-    return source.mbtiles != null && ["PENDING", "RUNNING"].indexOf(source.mbtiles.state) >= 0;
+    return ["PENDING", "RUNNING"].indexOf(ingest.state) >= 0 ||
+           ["PENDING", "RUNNING"].indexOf(mbtiles.state) >= 0;
   }
 
   render() {

@@ -202,7 +202,7 @@ export default class ProjectPane extends React.Component {
 
   cancel() {
     const { endpoint } = this.props;
-    const { pending } = this.state;
+    let { pending } = this.state;
 
     if (pending.indexOf("cancelling") >= 0) {
       throw new Error("Already cancelling.");
@@ -225,8 +225,11 @@ export default class ProjectPane extends React.Component {
         throw new Error("Failed.");
       }
 
+      pending = this.state.pending;
+      pending.splice(pending.indexOf("cancelling"), 1);
+
       this.setState({
-        pending: pending.splice(pending.indexOf("cancelling"), 1),
+        pending,
         showSpinner: false,
       });
     }).catch(err => {
@@ -236,7 +239,7 @@ export default class ProjectPane extends React.Component {
 
   delete() {
     const { endpoint } = this.props;
-    const { pending } = this.state;
+    let { pending } = this.state;
 
     if (pending.indexOf("deleting") >= 0) {
       throw new Error("Already deleting.");
@@ -258,8 +261,11 @@ export default class ProjectPane extends React.Component {
         throw new Error("Failed.");
       }
 
+      pending = this.state.pending;
+      pending.splice(pending.indexOf("deleting"), 1);
+
       this.setState({
-        pending: pending.splice(pending.indexOf("deleting"), 1),
+        pending,
         showSpinner: false,
       });
     }).catch(err => {
@@ -332,9 +338,10 @@ export default class ProjectPane extends React.Component {
           clearInterval(imageryChecker);
 
           pending = this.state.pending;
+          pending.splice(pending.indexOf("ingesting"), 1);
 
           this.setState({
-            pending: pending.splice(pending.indexOf("ingesting"), 1),
+            pending,
           });
         }, status => {
           clearInterval(imageryChecker);
@@ -344,9 +351,10 @@ export default class ProjectPane extends React.Component {
             imagery: `${imageryEndpoint}/imagery/${source.name}`
           }, rsp => {
             pending = this.state.pending;
+            pending.splice(pending.indexOf("ingesting"), 1);
 
             this.setState({
-              pending: pending.splice(pending.indexOf("ingesting"), 1),
+              pending,
             });
           });
         });
@@ -371,8 +379,10 @@ export default class ProjectPane extends React.Component {
 
           if (pending.indexOf("cancelling") >= 0 &&
               project.status.state === "REVOKED") {
+            pending.splice(pending.indexOf("cancelling"), 1);
+
             this.setState({
-              pending: pending.splice(pending.indexOf("cancelling"), 1),
+              pending,
             });
           }
 
@@ -462,9 +472,10 @@ export default class ProjectPane extends React.Component {
         console.warn("MBTiles generation failed:", status);
 
         pending = this.state.pending;
+        pending.splice(pending.indexOf("mbtiles"), 1);
 
         this.setState({
-          pending: pending.splice(pending.indexOf("mbtiles"), 1),
+          pending,
         });
       }, status => {
         console.log("Marking presence of MBTiles");
@@ -473,9 +484,10 @@ export default class ProjectPane extends React.Component {
           mbtiles: `${user.imagery}/mbtiles`
         }, rsp => {
           pending = this.state.pending;
+          pending.splice(pending.indexOf("mbtiles"), 1);
 
           this.setState({
-            pending: pending.splice(pending.indexOf("mbtiles"), 1),
+            pending,
           });
         });
       });
@@ -489,9 +501,10 @@ export default class ProjectPane extends React.Component {
           clearInterval(imageryChecker);
 
           pending = this.state.pending;
+          pending.splice(pending.indexOf("ingesting"), 1);
 
           this.setState({
-            pending: pending.splice(pending.indexOf("ingesting"), 1),
+            pending,
           });
         }, status => {
           clearInterval(imageryChecker);
@@ -500,9 +513,10 @@ export default class ProjectPane extends React.Component {
             console.warn("MBTiles generation failed:", status);
 
             pending = this.state.pending;
+            pending.splice(pending.indexOf("mbtiles"), 1);
 
             this.setState({
-              pending: pending.splice(pending.indexOf("mbtiles"), 1),
+              pending,
             });
           }, status => {
             console.log("Marking presence of MBTiles");
@@ -511,9 +525,10 @@ export default class ProjectPane extends React.Component {
               mbtiles: `${imageryEndpoint}/imagery/${source.name}/mbtiles`
             }, rsp => {
               pending = this.state.pending;
+              pending.splice(pending.indexOf("mbtiles"), 1);
 
               this.setState({
-                pending: pending.splice(pending.indexOf("mbtiles"), 1),
+                pending,
               });
             });
           });
@@ -523,9 +538,10 @@ export default class ProjectPane extends React.Component {
             imagery: `${imageryEndpoint}/imagery/${source.name}`
           }, rsp => {
             pending = this.state.pending;
+            pending.splice(pending.indexOf("ingesting"), 1);
 
             this.setState({
-              pending: pending.splice(pending.indexOf("ingesting"), 1),
+              pending,
             });
           });
         });
@@ -564,9 +580,10 @@ export default class ProjectPane extends React.Component {
       }
 
       pending = this.state.pending;
+      pending.splice(pending.indexOf("processing"), 1);
 
       this.setState({
-        pending: pending.splice(pending.indexOf("processing"), 1),
+        pending,
       });
     }).catch(err => {
       console.warn(err.stack);
