@@ -1,9 +1,4 @@
-var fs = require("fs");
-
-var toml = require("toml"),
-    webpack = require("webpack");
-
-var linkPrefix = toml.parse(fs.readFileSync("./config.toml")).linkPrefix;
+const webpack = require("webpack");
 
 exports.modifyWebpackConfig = function(config, env) {
   config.plugin("provide", webpack.ProvidePlugin, [{
