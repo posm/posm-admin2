@@ -13,13 +13,5 @@ exports.modifyWebpackConfig = function(config, env) {
     "window.jQuery": "jquery",
   }]);
 
-  if (linkPrefix && env !== "develop") {
-    config.merge({
-      output: {
-        publicPath: linkPrefix + "/",
-      },
-    });
-  }
-
   return config;
 };
