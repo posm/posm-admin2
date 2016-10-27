@@ -28,6 +28,7 @@ export default class ProjectPane extends React.Component {
     this.makeMBTiles = this.makeMBTiles.bind(this);
     this.process = this.process.bind(this);
     this.reprocess = this.reprocess.bind(this);
+    this.toggle = this.toggle.bind(this);
   }
 
   state = {
@@ -35,6 +36,7 @@ export default class ProjectPane extends React.Component {
     pending: [],
     project: this.props.project,
     projectName: this.props.project.user.name || this.props.name,
+    shown: false,
     showSpinner: false,
     tiling: false,
   }
@@ -207,6 +209,29 @@ export default class ProjectPane extends React.Component {
     return null;
   }
 
+  getProject(callback = () => {}) {
+    const { endpoint } = this.props;
+
+    fetch(endpoint)
+      .then(rsp => {
+        if (!rsp.ok) {
+          console.log("bad response");
+        }
+
+        return rsp.json();
+      })
+      .then(project => {
+        this.setState({
+          project,
+        });
+
+        callback(project);
+      })
+      .catch(err => {
+        console.warn(err.stack);
+      });
+  }
+
   shouldShowSpinner() {
     return this.state.showSpinner;
   }
@@ -235,6 +260,12 @@ export default class ProjectPane extends React.Component {
       }
     }).catch(err => {
       console.warn(err.stack);
+    });
+  }
+
+  toggle() {
+    this.setState({
+      shown: !this.state.shown,
     });
   }
 
@@ -359,29 +390,6 @@ export default class ProjectPane extends React.Component {
         });
       }, refreshInterval);
     });
-  }
-
-  getProject(callback = () => {}) {
-    const { endpoint } = this.props;
-
-    fetch(endpoint)
-      .then(rsp => {
-        if (!rsp.ok) {
-          console.log("bad response");
-        }
-
-        return rsp.json();
-      })
-      .then(project => {
-        this.setState({
-          project,
-        });
-
-        callback(project);
-      })
-      .catch(err => {
-        console.warn(err.stack);
-      });
   }
 
   monitor() {
@@ -585,7 +593,7 @@ export default class ProjectPane extends React.Component {
 
   render() {
     const { name } = this.props;
-    const { project, projectName } = this.state;
+    const { project, projectName, shown } = this.state;
     const { artifacts, images, status } = project;
 
     const buttons = this.getButtons();
@@ -597,8 +605,7 @@ export default class ProjectPane extends React.Component {
       <div className="row">
         <div className="x_panel">
           <div className="x_title">
-            {/* TODO change to fa-chevron-down when opened; see http://stackoverflow.com/questions/13778703/adding-open-closed-icon-to-twitter-bootstrap-collapsibles-accordions */}
-            <h2><a data-toggle="collapse" href={`#${name}-panel`}><i className="fa fa-chevron-right" /> {projectName}</a>
+            <h2><a onClick={this.toggle}><i className={shown ? "fa fa-chevron-down" : "fa fa-chevron-right"} /> {projectName}</a>
               <a role="button"><i className="fa fa-pencil" /></a>{failure} {spinner}</h2>
 
             <div className="pull-right">
@@ -626,35 +633,39 @@ export default class ProjectPane extends React.Component {
             </div>
           </div>
 
-          <div className="x_content panel-collapse collapse" id={`${name}-panel`}>
-            <div role="tabpanel">
-              <ul id="images" className="nav nav-tabs bar_tabs" role="tablist">
-                <li role="presentation" className={status.state == null ? "active" : null}>
-                  <a href={`#${name}_images`} id={`${name}-images-tab`} role="tab" data-toggle="tab" aria-expanded="true">Sources</a>
-                </li>
-                <li role="presentation" className={status.state ? "active" : null}>
-                  <a href={`#${name}_artifacts`} id={`${name}-artifacts-tab`} role="tab" data-toggle="tab" aria-expanded="false">Output</a>
-                </li>
-              </ul>
+          {
+            shown && (
+              <div className="x_content">
+                <div role="tabpanel">
+                  <ul id="images" className="nav nav-tabs bar_tabs" role="tablist">
+                    <li role="presentation" className={status.state == null ? "active" : null}>
+                      <a href={`#${name}_images`} id={`${name}-images-tab`} role="tab" data-toggle="tab" aria-expanded="true">Sources</a>
+                    </li>
+                    <li role="presentation" className={status.state ? "active" : null}>
+                      <a href={`#${name}_artifacts`} id={`${name}-artifacts-tab`} role="tab" data-toggle="tab" aria-expanded="false">Output</a>
+                    </li>
+                  </ul>
 
-              <div className="tab-content">
-                <ProjectOutputPanel
-                  {...this.props}
-                  active={status.state != null}
-                  artifacts={artifacts}
-                  project={project}
-                />
+                  <div className="tab-content">
+                    <ProjectOutputPanel
+                      {...this.props}
+                      active={status.state != null}
+                      artifacts={artifacts}
+                      project={project}
+                    />
 
-                <ProjectSourcesPanel
-                  {...this.props}
-                  active={status.state == null}
-                  getProject={this.getProject}
-                  project={project}
-                  sources={images}
-                />
+                    <ProjectSourcesPanel
+                      {...this.props}
+                      active={status.state == null}
+                      getProject={this.getProject}
+                      project={project}
+                      sources={images}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )
+          }
         </div>
       </div>
     );
