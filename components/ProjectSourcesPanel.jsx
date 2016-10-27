@@ -1,4 +1,8 @@
 import React from "react";
+import Dropzone from "react-dropzone-component";
+
+import "react-dropzone-component/styles/filepicker.css";
+import "dropzone/dist/dropzone.css";
 
 import SourceThumbnail from "./SourceThumbnail";
 
@@ -11,6 +15,8 @@ export default class ProjectSourcesPanel extends React.Component {
     return {
       active: React.PropTypes.bool.isRequired,
       count: React.PropTypes.integer,
+      endpoint: React.PropTypes.string.isRequired,
+      getProject: React.PropTypes.fn.isRequired,
       name: React.PropTypes.string.isRequired,
       sources: React.PropTypes.array.isRequired,
     };
@@ -28,8 +34,11 @@ export default class ProjectSourcesPanel extends React.Component {
 
   getShowAllButton() {
     const showAll = this.showAll;
+    const { count } = this.state;
+    const { sources } = this.props;
 
-    if (this.state.count === Infinity) {
+    if (sources.length === 0 ||
+        sources.length < count) {
       return null;
     }
 
@@ -49,7 +58,7 @@ export default class ProjectSourcesPanel extends React.Component {
   }
 
   render() {
-    const { active, name, sources } = this.props;
+    const { active, endpoint, getProject, name, sources } = this.props;
     const { count } = this.state;
 
     const thumbnails = sources.slice(0, count).map((image, col) => (
@@ -60,11 +69,25 @@ export default class ProjectSourcesPanel extends React.Component {
 
     return (
       <div role="tabpanel" className={active ? "tab-pane fade active in" : "tab-pane fade"} id={`${name}_images`} aria-labelledby={`${name}-images-tab`}>
+        <Dropzone
+          config={{
+            postUrl: `${endpoint}/upload`,
+          }}
+          eventHandlers={{
+            complete: file => {
+              getProject();
+            },
+          }}
+          djsConfig={{
+            acceptedFiles: "image/jpeg,image/png",
+            method: "PUT",
+          }}
+        />
+
         <div className="row sources">
           {thumbnails}
         </div>
 
-        {/* TODO allow additional files to be uploaded */}
         {showAllButton}
       </div>
     );

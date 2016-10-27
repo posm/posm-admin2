@@ -1,9 +1,5 @@
 import React from "react";
-import Dropzone from "react-dropzone-component";
 import Helmet from "react-helmet";
-import "react-dropzone-component/styles/filepicker.css";
-import "dropzone/dist/dropzone.css";
-import uuid from "uuid";
 
 import { config } from "config";
 import Modal from "../components/Modal";
@@ -35,7 +31,6 @@ export default class Index extends React.Component {
 
   state = {
     projectName: "",
-    projectUUID: uuid.v4(),
     projects: {},
   }
 
@@ -75,15 +70,15 @@ export default class Index extends React.Component {
 
   saveProject() {
     const { endpoint } = this.props;
-    const { projectName, projectUUID } = this.state;
+    const { projectName } = this.state;
 
     if (projectName !== "") {
       // update metadata
-      fetch(`${endpoint}/projects/${projectUUID}`, {
+      fetch(`${endpoint}/projects`, {
         body: JSON.stringify({
           name: projectName,
         }),
-        method: "PATCH"
+        method: "PUT"
       }).then(rsp => this.getProjects())
         .catch(err => console.warn(err.stack));
     }
@@ -91,10 +86,7 @@ export default class Index extends React.Component {
     // reset the new project name for the next upload
     this.setState({
       projectName: "",
-      projectUUID: uuid.v4()
     });
-
-    this.dropzone.removeAllFiles();
   }
 
   updateProjectName(event) {
@@ -145,26 +137,6 @@ export default class Index extends React.Component {
               <div className="form-group">
                 <input type="text" className="form-control" placeholder="Project Name" value={newProjectName} onChange={this.updateProjectName} />
               </div>
-              <Dropzone
-                config={{
-                  postUrl: "no-url",
-                }}
-                eventHandlers={{
-                  init: dropzone => {
-                    this.dropzone = dropzone;
-                  },
-                  processing: () => {
-                    const { projectUUID } = this.state;
-
-                    this.dropzone.options.url = `${endpoint}/projects/${projectUUID}/upload`;
-                  },
-                }}
-                djsConfig={{
-                  acceptedFiles: "image/jpeg,image/png",
-                  addRemoveLinks: false,
-                  method: "PUT",
-                }}
-              />
             </form>
           </ModalBody>
           <ModalFooter>

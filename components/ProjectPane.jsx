@@ -648,8 +648,9 @@ export default class ProjectPane extends React.Component {
                 <ProjectSourcesPanel
                   {...this.props}
                   active={status.state == null}
-                  sources={images}
+                  getProject={this.getProject}
                   project={project}
+                  sources={images}
                 />
               </div>
             </div>

@@ -34,7 +34,7 @@ export default class Modal extends React.Component {
 
     return (
       <div className="modal fade" id={id} tabIndex="-1" role="dialog" aria-labelledby={labelId} ref={(c) => (this.container = c)}>
-        <div className="modal-dialog modal-lg" role="document">
+        <div className="modal-dialog" role="document">
           <div className="modal-content">
             {childrenWithProps}
             {/* React.cloneElement(children, { labelId }) */}
