@@ -84,7 +84,7 @@ export default class Index extends React.Component {
           name: projectName,
         }),
         method: "PATCH"
-      }).then(rsp => this.getProjects)
+      }).then(rsp => this.getProjects())
         .catch(err => console.warn(err.stack));
     }
 

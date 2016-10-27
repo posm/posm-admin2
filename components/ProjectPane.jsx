@@ -58,6 +58,7 @@ export default class ProjectPane extends React.Component {
     if (nextState.project !== this.state.project) {
       this.setState({
         pending: [],
+        projectName: nextState.project.user.name || this.props.name,
       });
     }
   }
@@ -315,7 +316,8 @@ export default class ProjectPane extends React.Component {
     fetch(endpoint, {
       body: JSON.stringify(body),
       method: "PATCH"
-    }).catch(err => console.warn(err.stack));
+    }).then(rsp => this.getProject())
+      .catch(err => console.warn(err.stack));
   }
 
   ingestSource() {
@@ -359,37 +361,45 @@ export default class ProjectPane extends React.Component {
     });
   }
 
+  getProject(callback = () => {}) {
+    const { endpoint } = this.props;
+
+    fetch(endpoint)
+      .then(rsp => {
+        if (!rsp.ok) {
+          console.log("bad response");
+        }
+
+        return rsp.json();
+      })
+      .then(project => {
+        this.setState({
+          project,
+        });
+
+        callback(project);
+      })
+      .catch(err => {
+        console.warn(err.stack);
+      });
+  }
+
   monitor() {
-    const { endpoint, refreshInterval } = this.props;
+    const { refreshInterval } = this.props;
 
     this.checker = setInterval(() => {
-      fetch(`${endpoint}`)
-        .then(rsp => {
-          if (!rsp.ok) {
-            console.log("bad response");
-          }
+      this.getProject(project => {
+        const { pending } = this.state;
 
-          return rsp.json();
-        })
-        .then(project => {
-          const { pending } = this.state;
-
-          if (pending.indexOf("cancelling") >= 0 &&
-              project.status.state === "REVOKED") {
-            pending.splice(pending.indexOf("cancelling"), 1);
-
-            this.setState({
-              pending,
-            });
-          }
+        if (pending.indexOf("cancelling") >= 0 &&
+            project.status.state === "REVOKED") {
+          pending.splice(pending.indexOf("cancelling"), 1);
 
           this.setState({
-            project,
+            pending,
           });
-        })
-        .catch(err => {
-          console.warn(err.stack);
-        });
+        }
+      });
     }, refreshInterval);
   }
 
@@ -588,7 +598,8 @@ export default class ProjectPane extends React.Component {
         <div className="x_panel">
           <div className="x_title">
             {/* TODO change to fa-chevron-down when opened; see http://stackoverflow.com/questions/13778703/adding-open-closed-icon-to-twitter-bootstrap-collapsibles-accordions */}
-            <h2><a data-toggle="collapse" href={`#${name}-panel`}><i className="fa fa-chevron-right" /> {projectName}</a> {failure} {spinner}</h2>
+            <h2><a data-toggle="collapse" href={`#${name}-panel`}><i className="fa fa-chevron-right" /> {projectName}</a>
+              <a role="button"><i className="fa fa-pencil" /></a>{failure} {spinner}</h2>
 
             <div className="pull-right">
               {buttons}
