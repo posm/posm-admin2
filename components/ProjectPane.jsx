@@ -1,4 +1,6 @@
 import React from "react";
+import Button from "react-bootstrap/lib/Button";
+import Form from "react-bootstrap/lib/Form";
 
 import highlight from "../utils/highlight";
 import ProjectOutputPanel from "./ProjectOutputPanel";
@@ -29,9 +31,13 @@ export default class ProjectPane extends React.Component {
     this.process = this.process.bind(this);
     this.reprocess = this.reprocess.bind(this);
     this.toggle = this.toggle.bind(this);
+    this.editName = this.editName.bind(this);
+    this.updateProjectName = this.updateProjectName.bind(this);
+    this.saveProject = this.saveProject.bind(this);
   }
 
   state = {
+    editing: false,
     ingesting: false,
     pending: [],
     project: this.props.project,
@@ -266,6 +272,30 @@ export default class ProjectPane extends React.Component {
   toggle() {
     this.setState({
       shown: !this.state.shown,
+    });
+  }
+
+  editName() {
+    this.setState({
+      editing: true,
+    });
+  }
+
+  updateProjectName(evt) {
+    this.setState({
+      projectName: evt.target.value,
+    });
+  }
+
+  saveProject(evt) {
+    evt.preventDefault();
+
+    this.updateMetadata({
+      name: this.state.projectName,
+    });
+
+    this.setState({
+      editing: false,
     });
   }
 
@@ -593,7 +623,7 @@ export default class ProjectPane extends React.Component {
 
   render() {
     const { name } = this.props;
-    const { project, projectName, shown } = this.state;
+    const { editing, project, projectName, shown } = this.state;
     const { artifacts, images, status } = project;
 
     const buttons = this.getButtons();
@@ -604,68 +634,82 @@ export default class ProjectPane extends React.Component {
     return (
       <div className="row">
         <div className="x_panel">
-          <div className="x_title">
-            <h2><a onClick={this.toggle}><i className={shown ? "fa fa-chevron-down" : "fa fa-chevron-right"} /> {projectName}</a>
-              <a role="button"><i className="fa fa-pencil" /></a>{failure} {spinner}</h2>
+          <Form inline onSubmit={this.saveProject}>
+            <div className="x_title">
+              <h2><a tabIndex="-1" onClick={this.toggle}><i className={shown ? "fa fa-chevron-down" : "fa fa-chevron-right"} />&nbsp;</a>
+                { editing ?
+                  (
+                    <span>
+                      <input type="text" placeholder={name} value={projectName} onChange={this.updateProjectName} />
+                      <Button type="submit" bsStyle="link"><i className="fa fa-check" /></Button>
+                    </span>
+                  ) : (
+                    <span>
+                      <a tabIndex="-1" onClick={this.toggle}>{projectName}</a> <a tabIndex="-1" role="button" onClick={this.editName}><i className="fa fa-pencil" /></a>
+                    </span>
+                  )
+                }
+                {failure} {spinner}</h2>
 
-            <div className="pull-right">
-              {buttons}
-              {/* TODO wire this up (needs API implementation) deleteButton */}
-            </div>
-            <div className="clearfix" />
-          </div>
-
-          <div className={`modal fade ${name}-status-modal`} tabIndex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
-            <div className="modal-dialog modal-md" role="document">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                  <h4 className="modal-title" id="mySmallModalLabel">{name} Status</h4>
-                </div>
-                <div className="modal-body">
-                  <pre
-                    dangerouslySetInnerHTML={{ __html: highlight(JSON.stringify({
-                      project,
-                    }, null, 2), "json") }}
-                  />
-                </div>
+              <div className="pull-right">
+                {buttons}
+                {/* TODO wire this up (needs API implementation) deleteButton */}
               </div>
+              <div className="clearfix" />
             </div>
-          </div>
 
-          {
-            shown && (
-              <div className="x_content">
-                <div role="tabpanel">
-                  <ul id="images" className="nav nav-tabs bar_tabs" role="tablist">
-                    <li role="presentation" className={status.state == null ? "active" : null}>
-                      <a href={`#${name}_images`} id={`${name}-images-tab`} role="tab" data-toggle="tab" aria-expanded="true">Sources</a>
-                    </li>
-                    <li role="presentation" className={status.state ? "active" : null}>
-                      <a href={`#${name}_artifacts`} id={`${name}-artifacts-tab`} role="tab" data-toggle="tab" aria-expanded="false">Output</a>
-                    </li>
-                  </ul>
-
-                  <div className="tab-content">
-                    <ProjectOutputPanel
-                      {...this.props}
-                      active={status.state != null}
-                      artifacts={artifacts}
-                      project={project}
-                    />
-
-                    <ProjectSourcesPanel
-                      {...this.props}
-                      active={status.state == null}
-                      getProject={this.getProject}
-                      project={project}
-                      sources={images}
+            <div className={`modal fade ${name}-status-modal`} tabIndex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+              <div className="modal-dialog modal-md" role="document">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                    <h4 className="modal-title" id="mySmallModalLabel">{name} Status</h4>
+                  </div>
+                  <div className="modal-body">
+                    <pre
+                      dangerouslySetInnerHTML={{ __html: highlight(JSON.stringify({
+                        project,
+                      }, null, 2), "json") }}
                     />
                   </div>
                 </div>
               </div>
-            )
-          }
+            </div>
+
+            {
+              shown && (
+                <div className="x_content">
+                  <div role="tabpanel">
+                    <ul id="images" className="nav nav-tabs bar_tabs" role="tablist">
+                      <li role="presentation" className={status.state == null ? "active" : null}>
+                        <a href={`#${name}_images`} id={`${name}-images-tab`} role="tab" data-toggle="tab" aria-expanded="true">Sources</a>
+                      </li>
+                      <li role="presentation" className={status.state ? "active" : null}>
+                        <a href={`#${name}_artifacts`} id={`${name}-artifacts-tab`} role="tab" data-toggle="tab" aria-expanded="false">Output</a>
+                      </li>
+                    </ul>
+
+                    <div className="tab-content">
+                      <ProjectOutputPanel
+                        {...this.props}
+                        active={status.state != null}
+                        artifacts={artifacts}
+                        project={project}
+                      />
+
+                      <ProjectSourcesPanel
+                        {...this.props}
+                        active={status.state == null}
+                        getProject={this.getProject}
+                        project={project}
+                        sources={images}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+          </Form>
         </div>
       </div>
     );
