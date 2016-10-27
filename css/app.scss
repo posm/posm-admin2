@@ -3,12 +3,23 @@ $fa-font-path: "~font-awesome/fonts";
 
 @import "~bootstrap-sass/assets/stylesheets/bootstrap";
 @import "~font-awesome/scss/font-awesome";
-@import "~bootstrap-progressbar/scss/bootstrap-progressbar-3.3.0-3.x.x.scss";
 @import "~gentelella/src/scss/custom";
 
 @import "theme_overrides";
 @import "sidebar";
 
+html, body, .container, .main_container {
+  height: 100%;
+}
+
+.right_col {
+  min-height: 100%;
+}
+
 .row.sources {
   padding-top: 14px;
+}
+
+a {
+  cursor: pointer;
 }
