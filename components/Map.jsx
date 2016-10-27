@@ -2,6 +2,8 @@ import React from "react";
 
 import "leaflet/dist/leaflet.css";
 
+import { config } from "config";
+
 const MEDIA_QUERY = `(-webkit-min-device-pixel-ratio: 1.5),
                      (min--moz-device-pixel-ratio: 1.5),
                      (-o-min-device-pixel-ratio: 3/2),
@@ -20,18 +22,22 @@ export default class Map extends React.Component {
   componentDidMount() {
     const { bounds, maxzoom, minzoom } = this.props;
     let { url } = this.props;
+    let { backgroundTileLayer } = config;
 
     // Leaflet needs to be required here so that it's not available in a server context
     const Leaflet = require("leaflet");
 
     if (window.devicePixelRatio > 1 ||
         (window.matchMedia && window.matchMedia(MEDIA_QUERY).matches)) {
+      backgroundTileLayer = backgroundTileLayer.replace(/\.(?!.*\.)/, "@2x.");
       url = url.replace(/\.(?!.*\.)/, "@2x.");
     }
 
     this.leaflet = Leaflet.map(this.container, {
       scrollWheelZoom: false,
+      maxZoom: maxzoom,
       layers: [
+        Leaflet.tileLayer(backgroundTileLayer),
         Leaflet.tileLayer(url, {
           minZoom: minzoom,
           maxZoom: maxzoom,

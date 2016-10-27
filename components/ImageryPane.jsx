@@ -1,4 +1,9 @@
 import React from "react";
+import Col from "react-bootstrap/lib/Col";
+import ControlLabel from "react-bootstrap/lib/ControlLabel";
+import Form from "react-bootstrap/lib/Form";
+import FormControl from "react-bootstrap/lib/FormControl";
+import FormGroup from "react-bootstrap/lib/FormGroup";
 
 import highlight from "../utils/highlight";
 import Map from "./Map";
@@ -11,6 +16,7 @@ export default class ImageryPane extends React.Component {
   static propTypes() {
     return {
       endpoint: React.PropTypes.string.isRequired,
+      name: React.PropTypes.string.isRequired,
       refreshInterval: React.PropTypes.integer,
       source: React.PropTypes.object.isRequired,
     };
@@ -21,10 +27,12 @@ export default class ImageryPane extends React.Component {
 
     this.cancel = this.cancel.bind(this);
     this.makeMBTiles = this.makeMBTiles.bind(this);
+    this.toggle = this.toggle.bind(this);
   }
 
   state = {
     pending: [],
+    shown: false,
     showSpinner: ["PENDING", "RUNNING"].indexOf(this.props.source.meta.status.ingest.state) >= 0,
     source: this.props.source,
   }
@@ -134,20 +142,49 @@ export default class ImageryPane extends React.Component {
   }
 
   getMap() {
-    if (!this.isReady()) {
+    if (!this.state.shown || !this.isReady()) {
       return null;
     }
+    // TODO make GDAL XML available for download
 
+    const { endpoint, name } = this.props;
     const { source } = this.state;
-    const { maxzoom, minzoom, name } = source;
+    const { maxzoom, minzoom } = source;
 
     const bounds = [source.bounds.slice(0, 2).reverse(), source.bounds.slice(2, 4).reverse()];
     const url = source.tiles[0];
-    // TODO display URL template / TileJSON URL
-    // TODO make GDAL XML available for download
-    // TODO default to closed and trigger leaflet.invalidateSize when opened
+    const josm = `tms[22]:${url.replace(/{z}/, "{zoom}")}`;
+
     return (
-      <div className="x_content panel-collapse collapse in" id={`${name}-panel`}>
+      <div className="x_content">
+        <div className="row">
+          <Form horizontal>
+            <FormGroup controlId={`${name}-url`}>
+              <Col componentClass={ControlLabel} sm={2}>
+                URL:
+              </Col>
+              <Col sm={10}>
+                <FormControl type="text" value={url} readOnly />
+              </Col>
+            </FormGroup>
+            <FormGroup controlId={`${name}-tilejson`}>
+              <Col componentClass={ControlLabel} sm={2}>
+                TileJSON:
+              </Col>
+              <Col sm={10}>
+                <FormControl type="text" value={endpoint} readOnly />
+              </Col>
+            </FormGroup>
+            <FormGroup controlId={`${name}-josm`}>
+              <Col componentClass={ControlLabel} sm={2}>
+                JOSM Imagery URL:
+              </Col>
+              <Col sm={10}>
+                <FormControl type="text" value={josm} readOnly />
+              </Col>
+            </FormGroup>
+          </Form>
+        </div>
         <Map
           bounds={bounds}
           maxzoom={maxzoom}
@@ -287,8 +324,14 @@ export default class ImageryPane extends React.Component {
     return this.isIngesting() || this.isTiling();
   }
 
+  toggle() {
+    this.setState({
+      shown: !this.state.shown,
+    });
+  }
+
   render() {
-    const { source } = this.state;
+    const { shown, source } = this.state;
     const { name } = source;
     const { user } = source.meta;
     const sourceName = user.name || name;
@@ -303,8 +346,7 @@ export default class ImageryPane extends React.Component {
       <div className="row">
         <div className="x_panel">
           <div className="x_title">
-            {/* TODO change to fa-chevron-down when opened; see http://stackoverflow.com/questions/13778703/adding-open-closed-icon-to-twitter-bootstrap-collapsibles-accordions */}
-            <h2><a data-toggle="collapse" href={`#${name}-panel`}><i className="fa fa-chevron-right" /> {sourceName}</a> {failure} {spinner}</h2>
+            <h2><a tabIndex="-1" onClick={this.toggle}><i className={shown ? "fa fa-chevron-down" : "fa fa-chevron-right"} /> {sourceName}</a> {failure} {spinner}</h2>
 
             <div className="pull-right">
               {buttons}
