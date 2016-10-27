@@ -1,11 +1,12 @@
 import React from "react";
+import Button from "react-bootstrap/lib/Button";
+import Form from "react-bootstrap/lib/Form";
+import FormControl from "react-bootstrap/lib/FormControl";
+import FormGroup from "react-bootstrap/lib/FormGroup";
 import Helmet from "react-helmet";
+import Modal from "react-bootstrap/lib/Modal";
 
 import { config } from "config";
-import Modal from "../components/Modal";
-import ModalBody from "../components/ModalBody";
-import ModalFooter from "../components/ModalFooter";
-import ModalHeader from "../components/ModalHeader";
 import ProjectPane from "../components/ProjectPane";
 
 export default class Index extends React.Component {
@@ -24,7 +25,9 @@ export default class Index extends React.Component {
   constructor(props) {
     super(props);
 
+    this.close = this.close.bind(this);
     this.getProjects = this.getProjects.bind(this);
+    this.open = this.open.bind(this);
     this.saveProject = this.saveProject.bind(this);
     this.updateProjectName = this.updateProjectName.bind(this);
   }
@@ -32,6 +35,7 @@ export default class Index extends React.Component {
   state = {
     projectName: "",
     projects: {},
+    showModal: false,
   }
 
   componentDidMount() {
@@ -68,7 +72,21 @@ export default class Index extends React.Component {
     );
   }
 
-  saveProject() {
+  close() {
+    this.setState({
+      showModal: false,
+    });
+  }
+
+  open() {
+    this.setState({
+      showModal: true,
+    });
+  }
+
+  saveProject(evt) {
+    evt.preventDefault();
+
     const { endpoint } = this.props;
     const { projectName } = this.state;
 
@@ -87,17 +105,20 @@ export default class Index extends React.Component {
     this.setState({
       projectName: "",
     });
+
+    this.close();
   }
 
-  updateProjectName(event) {
+  updateProjectName(evt) {
     this.setState({
-      projectName: event.target.value,
+      projectName: evt.target.value,
     });
   }
 
   render() {
     const { endpoint, imageryEndpoint } = this.props;
 
+    // TODO sort alphabetically (not by UUID)
     const projects = Object.keys(this.state.projects).map(name => (
       <ProjectPane
         key={name}
@@ -108,7 +129,7 @@ export default class Index extends React.Component {
       />
     ));
 
-    const { newProjectName } = this.state;
+    const { projectName } = this.state;
 
     return (
       <div>
@@ -120,29 +141,33 @@ export default class Index extends React.Component {
             <h3>OpenDroneMap <small>Projects {this.getRefreshSpinner()}</small></h3>
           </div>
           <div className="title_right">
-            <button type="button" className="btn btn-primary btn-sm pull-right" data-toggle="modal" data-target="#newProject">New Project</button>
+            <Button className="pull-right" bsSize="small" bsStyle="primary" onClick={this.open}>New Project</Button>
           </div>
         </div>
         <div className="clearfix" />
 
         <Modal
-          id="newProject"
-          onHidden={this.getProjects}
+          show={this.state.showModal}
+          onHide={this.close}
+          onExit={this.getProjects}
         >
-          <ModalHeader
-            title="New Project"
-          />
-          <ModalBody>
-            <form className="form-horizontal form-label-left">
-              <div className="form-group">
-                <input type="text" className="form-control" placeholder="Project Name" value={newProjectName} onChange={this.updateProjectName} />
-              </div>
-            </form>
-          </ModalBody>
-          <ModalFooter>
-            <button type="button" className="btn btn-default" data-dismiss="modal">Close</button>
-            <button type="button" className="btn btn-primary" data-dismiss="modal" onClick={this.saveProject}>Create</button>
-          </ModalFooter>
+          <Modal.Header closeButton>
+            <Modal.Title>New Project</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form horizontal onSubmit={this.saveProject}>
+              <FormGroup>
+                <FormControl type="text" placeholder="Project Name" value={projectName} onChange={this.updateProjectName} autoFocus="true" />
+              </FormGroup>
+            </Form>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button onClick={this.close}>Close</Button>
+            <Button
+              bsStyle="primary"
+              onClick={this.saveProject}
+            >Create</Button>
+          </Modal.Footer>
         </Modal>
 
         { projects }

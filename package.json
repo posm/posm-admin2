@@ -26,6 +26,7 @@
     "object-assign": "^4.1.0",
     "pretty-bytes": "^4.0.2",
     "react": "^15.3.2",
+    "react-bootstrap": "^0.30.5",
     "react-dom": "^15.3.2",
     "react-dropzone-component": "^1.2.0",
     "react-headroom": "^2.1.2",
