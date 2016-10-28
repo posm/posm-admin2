@@ -1,4 +1,5 @@
 import React from "react";
+import Button from "react-bootstrap/lib/Button";
 import Col from "react-bootstrap/lib/Col";
 import ControlLabel from "react-bootstrap/lib/ControlLabel";
 import Form from "react-bootstrap/lib/Form";
@@ -28,22 +29,22 @@ export default class ImageryPane extends React.Component {
     this.cancel = this.cancel.bind(this);
     this.makeMBTiles = this.makeMBTiles.bind(this);
     this.toggle = this.toggle.bind(this);
+    this.editName = this.editName.bind(this);
+    this.updateSourceName = this.updateSourceName.bind(this);
+    this.saveSource = this.saveSource.bind(this);
   }
 
   state = {
+    editing: false,
     pending: [],
     shown: false,
     showSpinner: ["PENDING", "RUNNING"].indexOf(this.props.source.meta.status.ingest.state) >= 0,
     source: this.props.source,
+    sourceName: this.props.source.meta.user.name || this.props.name,
   }
 
   componentDidMount() {
     this.monitor();
-  }
-
-  shouldComponentUpdate(nextProps, nextState) {
-    // TODO implement these by doing a deep equality comparison on state.{pending,source}
-    return true;
   }
 
   componentWillUpdate(nextProps, nextState) {
@@ -207,6 +208,27 @@ export default class ImageryPane extends React.Component {
     return null;
   }
 
+  getSource() {
+    const { endpoint } = this.props;
+
+    fetch(endpoint)
+      .then(rsp => {
+        if (!rsp.ok) {
+          console.log("bad response");
+        }
+
+        return rsp.json();
+      })
+      .then(source => {
+        this.setState({
+          source,
+        });
+      })
+      .catch(err => {
+        console.warn(err.stack);
+      });
+  }
+
   shouldShowSpinner() {
     return this.state.showSpinner;
   }
@@ -248,26 +270,9 @@ export default class ImageryPane extends React.Component {
   }
 
   monitor() {
-    const { endpoint, refreshInterval } = this.props;
+    const { refreshInterval } = this.props;
 
-    this.statusChecker = setInterval(() => {
-      fetch(endpoint)
-        .then(rsp => {
-          if (!rsp.ok) {
-            console.log("bad response");
-          }
-
-          return rsp.json();
-        })
-        .then(source => {
-          this.setState({
-            source,
-          });
-        })
-        .catch(err => {
-          console.warn(err.stack);
-        });
-    }, refreshInterval);
+    this.statusChecker = setInterval(() => this.getSource(), refreshInterval);
   }
 
   stopMonitoring() {
@@ -330,11 +335,44 @@ export default class ImageryPane extends React.Component {
     });
   }
 
+  updateMetadata(body) {
+    const { endpoint } = this.props;
+
+    // update metadata
+    fetch(endpoint, {
+      body: JSON.stringify(body),
+      method: "PATCH"
+    }).then(rsp => this.getSource())
+      .catch(err => console.warn(err.stack));
+  }
+
+  editName() {
+    this.setState({
+      editing: true,
+    });
+  }
+
+  updateSourceName(evt) {
+    this.setState({
+      sourceName: evt.target.value,
+    });
+  }
+
+  saveSource(evt) {
+    evt.preventDefault();
+
+    this.updateMetadata({
+      name: this.state.sourceName,
+    });
+
+    this.setState({
+      editing: false,
+    });
+  }
+
   render() {
-    const { shown, source } = this.state;
+    const { editing, shown, source, sourceName } = this.state;
     const { name } = source;
-    const { user } = source.meta;
-    const sourceName = user.name || name;
 
     // TODO delete button
     const buttons = this.getButtons();
@@ -345,32 +383,52 @@ export default class ImageryPane extends React.Component {
     return (
       <div className="row">
         <div className="x_panel">
-          <div className="x_title">
-            <h2><a tabIndex="-1" onClick={this.toggle}><i className={shown ? "fa fa-chevron-down" : "fa fa-chevron-right"} /> {sourceName}</a> {failure} {spinner}</h2>
+          <Form inline onSubmit={this.saveSource}>
+            <div className="x_title">
+              <h2>
+                <a tabIndex="-1" onClick={this.toggle}><i className={shown ? "fa fa-chevron-down" : "fa fa-chevron-right"} />&nbsp;</a>
+                {editing ?
+                  (
+                    <span>
+                      <input type="text" placeholder={name} value={sourceName} onChange={this.updateSourceName} />
+                      <Button type="submit" bsStyle="link"><i className="fa fa-check" /></Button>
+                    </span>
+                  ) : (
+                    <span>
+                      <a
+                        tabIndex="-1"
+                        onClick={this.toggle}
+                      >{sourceName}</a> <a tabIndex="-1" role="button" onClick={this.editName}><i className="fa fa-pencil" /></a>
+                    </span>
+                  )
+                }
+                {failure} {spinner}
+              </h2>
 
-            <div className="pull-right">
-              {buttons}
+              <div className="pull-right">
+                {buttons}
+              </div>
+              <div className="clearfix" />
             </div>
-            <div className="clearfix" />
-          </div>
 
-          <div className={`modal fade ${name}-status-modal`} tabIndex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
-            <div className="modal-dialog modal-md" role="document">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
-                  <h4 className="modal-title" id="mySmallModalLabel">{name} Status</h4>
-                </div>
-                <div className="modal-body">
-                  <pre
-                    dangerouslySetInnerHTML={{ __html: highlight(JSON.stringify({
-                      source,
-                    }, null, 2), "json") }}
-                  />
+            <div className={`modal fade ${name}-status-modal`} tabIndex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+              <div className="modal-dialog modal-md" role="document">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                    <h4 className="modal-title" id="mySmallModalLabel">{name} Status</h4>
+                  </div>
+                  <div className="modal-body">
+                    <pre
+                      dangerouslySetInnerHTML={{ __html: highlight(JSON.stringify({
+                        source,
+                      }, null, 2), "json") }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </Form>
 
           {map}
         </div>
