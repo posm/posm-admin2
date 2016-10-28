@@ -130,6 +130,7 @@ export default class ImageryPane extends React.Component {
   }
 
   getFailure() {
+    const { name } = this.props;
     const { status } = this.state.source.meta;
 
     if (status.ingest.state !== "FAILURE" &&
