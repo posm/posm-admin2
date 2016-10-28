@@ -1,4 +1,5 @@
 import React from "react";
+import Col from "react-bootstrap/lib/Col";
 
 import "leaflet/dist/leaflet.css";
 
@@ -19,6 +20,16 @@ export default class Map extends React.Component {
     };
   }
 
+  constructor(props) {
+    super(props);
+
+    this.updateOpacity = this.updateOpacity.bind(this);
+  }
+
+  state = {
+    opacity: 100,
+  }
+
   componentDidMount() {
     const { bounds, maxzoom, minzoom } = this.props;
     let { url } = this.props;
@@ -33,15 +44,17 @@ export default class Map extends React.Component {
       url = url.replace(/\.(?!.*\.)/, "@2x.");
     }
 
+    this.imageryLayer = Leaflet.tileLayer(url, {
+      minZoom: minzoom,
+      maxZoom: maxzoom,
+    });
+
     this.leaflet = Leaflet.map(this.container, {
       scrollWheelZoom: false,
       maxZoom: maxzoom,
       layers: [
         Leaflet.tileLayer(backgroundTileLayer),
-        Leaflet.tileLayer(url, {
-          minZoom: minzoom,
-          maxZoom: maxzoom,
-        }),
+        this.imageryLayer,
       ]
     });
 
@@ -53,16 +66,35 @@ export default class Map extends React.Component {
     this.leaflet.attributionControl.setPrefix("");
   }
 
+  componentDidUpdate() {
+    this.imageryLayer.setOpacity(this.state.opacity / 100);
+  }
+
   componentWillUnmount() {
     this.leaflet.remove();
   }
 
+  updateOpacity(evt) {
+    this.setState({
+      opacity: evt.target.value,
+    });
+  }
+
   render() {
+    const { opacity } = this.state;
+
     return (
-      <div
-        ref={(c) => (this.container = c)}
-        style={{ width: "100%", height: "500px" }}
-      />
+      <div>
+        <div
+          ref={(c) => (this.container = c)}
+          style={{ width: "100%", height: "500px" }}
+        />
+        <div className="row">
+          <Col md={3}>
+            <input type="range" step="10" value={opacity} onChange={this.updateOpacity} />
+          </Col>
+        </div>
+      </div>
     );
   }
 }
