@@ -47,6 +47,9 @@ export default class Map extends React.Component {
 
     this.leaflet.fitBounds(bounds);
 
+    Leaflet.control.scale({
+      maxWidth: 250,
+    }).addTo(this.leaflet);
     this.leaflet.attributionControl.setPrefix("");
   }
 
