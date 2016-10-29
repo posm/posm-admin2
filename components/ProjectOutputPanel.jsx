@@ -105,7 +105,7 @@ export default class ProjectSourcesPanel extends React.Component {
       <div className="row">
         <div className="col-md-4">
           <div className="thumbnail">
-            <img src={`${endpoint}/artifacts/ortho_thumb.png`} />
+            <a href={`${endpoint}/artifacts/odm_orthophoto.tif`}><img src={`${endpoint}/artifacts/ortho_thumb.png`} /></a>
             <div className="caption">
               <dl>
                 <dt>Bounds</dt>
