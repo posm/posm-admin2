@@ -89,6 +89,14 @@ export default class ProjectSourcesPanel extends React.Component {
     const { crs_wkt, height, width } = project.meta;
     let { bounds, resolution, size } = project.meta;
 
+    const projName = crs_wkt.split(/"/)[1];
+    const epsgCode = crs_wkt
+      .split(/\[/)
+      .pop()
+      .split(/,/)
+      .pop()
+      .replace(/[^\d]/g, "");
+
     bounds = bounds.map(x => x.toFixed(5)).join(", ");
     resolution = resolution.map(x => `${x.toFixed(2)} m`).join(" × ");
     size = prettyBytes(size);
@@ -109,7 +117,7 @@ export default class ProjectSourcesPanel extends React.Component {
                 <dt>Filesize</dt>
                 <dd>{size}</dd>
                 <dt>Coordinate Reference System</dt>
-                <dd><code>{crs_wkt}</code></dd>
+                <dd>{projName} (EPSG:{epsgCode})</dd>
               </dl>
             </div>
           </div>
