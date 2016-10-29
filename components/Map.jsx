@@ -11,12 +11,25 @@ const MEDIA_QUERY = `(-webkit-min-device-pixel-ratio: 1.5),
                      (min-resolution: 1.5dppx)`;
 
 export default class Map extends React.Component {
+  static defaultProps = {
+    bounds: [[-85.05112877980659, -180], [85.0511287798066, 180]],
+    maxzoom: 18,
+    minHeight: "500px",
+    minzoom: 0,
+    showBackground: false,
+    width: "100%",
+  }
+
   static propTypes() {
     return {
-      bounds: React.PropTypes.array.isRequired,
-      maxzoom: React.PropTypes.integer.isRequired,
-      minzoom: React.PropTypes.integer.isRequired,
-      url: React.PropTypes.string.isRequired,
+      bounds: React.PropTypes.array,
+      maxzoom: React.PropTypes.integer,
+      minHeight: React.PropTypes.string,
+      minzoom: React.PropTypes.integer,
+      showBackground: React.PropTypes.boolean,
+      tileJSON: React.PropTypes.string,
+      url: React.PropTypes.string,
+      width: React.PropTypes.string,
     };
   }
 
@@ -27,16 +40,37 @@ export default class Map extends React.Component {
   }
 
   state = {
+    bounds: this.props.bounds,
+    maxzoom: this.props.maxzoom,
+    minzoom: this.props.minzoom,
     opacity: 100,
+    url: this.props.url,
   }
 
   componentDidMount() {
-    const { bounds, maxzoom, minzoom } = this.props;
-    let { url } = this.props;
-    let { backgroundTileLayer } = config;
-
     // Leaflet needs to be required here so that it's not available in a server context
     const Leaflet = require("leaflet");
+
+    const { showBackground, tileJSON } = this.props;
+    const { bounds, maxzoom, minzoom } = this.state;
+    let { url } = this.state;
+    let { backgroundTileLayer } = config;
+
+    if (tileJSON != null) {
+      fetch(tileJSON)
+        .then(rsp => rsp.json())
+        .then(info => {
+          const bounds = [info.bounds.slice(0, 2).reverse(), info.bounds.slice(2, 4).reverse()];
+
+          this.setState({
+            bounds,
+            maxzoom: info.maxzoom,
+            minzoom: info.minzoom,
+            url: info.tiles[0],
+          });
+        })
+        .catch(err => console.warn(err.stack));
+    }
 
     if (window.devicePixelRatio > 1 ||
         (window.matchMedia && window.matchMedia(MEDIA_QUERY).matches)) {
@@ -44,18 +78,25 @@ export default class Map extends React.Component {
       url = url.replace(/\.(?!.*\.)/, "@2x.");
     }
 
-    this.imageryLayer = Leaflet.tileLayer(url, {
-      minZoom: minzoom,
-      maxZoom: maxzoom,
-    });
+    const layers = [];
+
+    if (showBackground) {
+      layers.push(Leaflet.tileLayer(backgroundTileLayer));
+    }
+
+    if (url != null) {
+      this.imageryLayer = Leaflet.tileLayer(url, {
+        minZoom: minzoom,
+        maxZoom: maxzoom,
+      });
+
+      layers.push(this.imageryLayer);
+    }
+
 
     this.leaflet = Leaflet.map(this.container, {
       scrollWheelZoom: false,
-      maxZoom: maxzoom,
-      layers: [
-        Leaflet.tileLayer(backgroundTileLayer),
-        this.imageryLayer,
-      ]
+      layers,
     });
 
     this.leaflet.fitBounds(bounds);
@@ -67,7 +108,20 @@ export default class Map extends React.Component {
   }
 
   componentDidUpdate() {
-    this.imageryLayer.setOpacity(this.state.opacity / 100);
+    const Leaflet = require("leaflet");
+
+    const { bounds, maxzoom, minzoom, opacity, url } = this.state;
+
+    if (this.imageryLayer == null) {
+      this.imageryLayer = Leaflet.tileLayer(url, {
+        minZoom: minzoom,
+        maxZoom: maxzoom,
+      }).addTo(this.leaflet);
+
+      this.leaflet.fitBounds(bounds);
+    }
+
+    this.imageryLayer.setOpacity(opacity / 100);
   }
 
   componentWillUnmount() {
@@ -81,13 +135,14 @@ export default class Map extends React.Component {
   }
 
   render() {
+    const { minHeight, width } = this.props;
     const { opacity } = this.state;
 
     return (
       <div>
         <div
           ref={(c) => (this.container = c)}
-          style={{ width: "100%", height: "500px" }}
+          style={{ minHeight, width }}
         />
         <div className="row">
           <Col md={3}>

@@ -3,6 +3,8 @@ import React from "react";
 import hljs from "highlight.js";
 import prettyBytes from "pretty-bytes";
 
+import Map from "./Map";
+
 const highlight = (str, lang) => {
   if (lang != null && hljs.getLanguage(lang)) {
     try {
@@ -86,6 +88,7 @@ export default class ProjectSourcesPanel extends React.Component {
       return null;
     }
 
+    const { user } = project;
     const { crs_wkt, height, width } = project.meta;
     let { bounds, resolution, size } = project.meta;
 
@@ -122,11 +125,17 @@ export default class ProjectSourcesPanel extends React.Component {
             </div>
           </div>
         </div>
-        <div className="col-md-8">
-          <div id={`${name}-map`}>
-            <h3 style={{ minHeight: "400px", width: "100%", background: "#eee" }}>MAP</h3>
+        {
+          user.imagery != null && (
+          <div className="col-md-8">
+            <Map
+              tileJSON={user.imagery}
+              minHeight="400px"
+              width="100%"
+            />
           </div>
-        </div>
+          )
+        }
       </div>
     );
   }
