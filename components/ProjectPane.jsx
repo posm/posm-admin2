@@ -34,6 +34,7 @@ export default class ProjectPane extends React.Component {
     this.editName = this.editName.bind(this);
     this.updateProjectName = this.updateProjectName.bind(this);
     this.saveProject = this.saveProject.bind(this);
+    this.getProject = this.getProject.bind(this);
   }
 
   state = {
