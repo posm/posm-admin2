@@ -1,7 +1,7 @@
 {
   "name": "posm-admin",
   "description": "POSM Admin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Seth Fitzsimmons <seth@mojodna.net>",
   "dependencies": {
     "bootstrap-sass": "^3.3.7",
