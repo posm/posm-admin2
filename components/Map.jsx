@@ -72,12 +72,6 @@ export default class Map extends React.Component {
         .catch(err => console.warn(err.stack));
     }
 
-    if (window.devicePixelRatio > 1 ||
-        (window.matchMedia && window.matchMedia(MEDIA_QUERY).matches)) {
-      backgroundTileLayer = backgroundTileLayer.replace(/\.(?!.*\.)/, "@2x.");
-      url = url.replace(/\.(?!.*\.)/, "@2x.");
-    }
-
     const layers = [];
 
     if (showBackground) {
@@ -85,6 +79,12 @@ export default class Map extends React.Component {
     }
 
     if (url != null) {
+      if (window.devicePixelRatio > 1 ||
+          (window.matchMedia && window.matchMedia(MEDIA_QUERY).matches)) {
+        backgroundTileLayer = backgroundTileLayer.replace(/\.(?!.*\.)/, "@2x.");
+        url = url.replace(/\.(?!.*\.)/, "@2x.");
+      }
+
       this.imageryLayer = Leaflet.tileLayer(url, {
         minZoom: minzoom,
         maxZoom: maxzoom,
