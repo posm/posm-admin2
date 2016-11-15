@@ -16,7 +16,7 @@ export default class Map extends React.Component {
     maxzoom: 18,
     minHeight: "500px",
     minzoom: 0,
-    showBackground: false,
+    showBackground: true,
     width: "100%",
   }
 
