@@ -80929,7 +80929,7 @@
 	  maxzoom: 18,
 	  minHeight: "500px",
 	  minzoom: 0,
-	  showBackground: false,
+	  showBackground: true,
 	  width: "100%"
 	};
 	exports.default = Map;
