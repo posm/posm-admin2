@@ -92,6 +92,7 @@ export default class ProjectSourcesPanel extends React.Component {
     const { crs_wkt, height, width } = project.meta;
     let { bounds, resolution, size } = project.meta;
 
+    // TODO use pyepsg.get() to expose a human-readable name in the API output
     const projName = crs_wkt.split(/"/)[1];
     const epsgCode = crs_wkt
       .split(/\[/)
